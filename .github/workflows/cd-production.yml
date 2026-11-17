@@ -1,0 +1,52 @@
+name: CD - production
+
+# Requires a GitHub Environment named "production" with required reviewers
+# configured (Settings -> Environments) — that approval gate is what makes
+# this a manual-gated deploy. Also needs:
+#   secret PRODUCTION_KUBECONFIG — base64-encoded kubeconfig for prod
+
+on:
+  workflow_run:
+    workflows: ["CD - staging"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-production:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.PRODUCTION_KUBECONFIG }}" | base64 -d > "$HOME/.kube/config"
+
+      - name: Apply base manifests (idempotent)
+        run: kubectl apply -k deploy/k8s/overlays/production
+
+      - name: Start rollout, pause for canary window
+        run: |
+          kubectl -n production set image deployment/session-manager \
+            session-manager=ghcr.io/${{ github.repository }}/session-manager:${{ github.event.workflow_run.head_sha }}
+          kubectl -n production rollout pause deployment/session-manager
+
+      - name: Canary window
+        run: |
+          echo "Rollout paused with the new ReplicaSet partially surged alongside the old one."
+          echo "This job only reached here after the 'production' environment's required"
+          echo "reviewers approved — that approval is the real gate. Extend this step with an"
+          echo "automated check against Prometheus (e.g. error rate, p95 latency) before"
+          echo "resuming, if you want unattended canary analysis."
+
+      - name: Resume full rollout
+        run: |
+          kubectl -n production rollout resume deployment/session-manager
+          kubectl -n production rollout status deployment/session-manager --timeout=180s

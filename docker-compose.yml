@@ -1,0 +1,103 @@
+services:
+  session-manager:
+    build: ./session-manager
+    ports:
+      - "4000:4000"
+    # Emulator containers are host-networked; this is how session-manager
+    # reaches their signaling ports (see the /stream proxy in index.js).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Lets session-manager read docker.sock to spawn SIBLING emulator
+      # containers on the host daemon (docker-outside-of-docker).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mounted here too so session-manager itself can list ROMs / see
+      # save files for its own API responses.
+      - ./roms:/data/roms:ro
+      - ./saves:/data/saves
+    environment:
+      - EMULATOR_IMAGE=container-emulator/emulator:latest
+      - ROMS_DIR=/data/roms
+      # Absolute HOST paths — required because binds created via the
+      # mounted docker.sock are resolved by the host daemon. Set these in
+      # a .env file (see .env.example); there is no safe cross-platform
+      # default.
+      - ROMS_HOST_DIR=${ROMS_HOST_DIR}
+      - SAVES_HOST_DIR=${SAVES_HOST_DIR}
+      # Optional: see the LOKI_URL comment in dockerManager.js. Leave unset
+      # to rely on promtail instead (default; Linux hosts only — README).
+      - LOKI_URL=${LOKI_URL:-}
+
+  # Build-only: produces container-emulator/emulator:latest, which
+  # session-manager spawns per session. Not meant to run standalone.
+  emulator:
+    build: ./emulator-image
+    image: container-emulator/emulator:latest
+    profiles: ["build-only"]
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+    ports:
+      # Host port 9091, not 9090 — some deploy targets already run a
+      # native Prometheus on 9090 (see README). Container port is unchanged.
+      - "9091:9090"
+
+  # Per-container CPU/mem stats, including the dynamically spawned emulator
+  # containers. On Docker Desktop these host mounts point at the Desktop VM,
+  # not the Windows/Mac filesystem — best-effort there; fully supported on a
+  # native Linux Docker host.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8081:8080"
+
+  loki:
+    image: grafana/loki:3.1.1
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+    ports:
+      - "3100:3100"
+
+  # Reads container logs via the host's /var/lib/docker/containers — a
+  # native-Linux-Docker-host pattern (see README for the Docker Desktop
+  # alternative: the LOKI_URL log driver above).
+  promtail:
+    image: grafana/promtail:3.1.1
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki

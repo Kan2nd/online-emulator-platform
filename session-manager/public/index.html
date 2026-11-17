@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Container Emulator</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  #userRow { margin-bottom: 1rem; }
+  #userRow input { padding: 0.3rem; }
+  ul#roms { list-style: none; padding: 0; }
+  ul#roms li { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #ddd; }
+  button { padding: 0.4rem 0.9rem; cursor: pointer; }
+  #status { color: #a33; margin: 0.5rem 0; min-height: 1.2em; }
+  #playArea { margin-top: 1.5rem; }
+  #playArea video { width: 100%; background: #000; border: 1px solid #ccc; display: block; image-rendering: pixelated; }
+  #playHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .hidden { display: none; }
+  .hint { color: #666; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+  <h1>Container Emulator</h1>
+  <p class="hint">Default keyboard mapping: arrow keys = d-pad, Z = B, X = A, Enter = Start, Shift = Select.</p>
+
+  <div id="userRow">
+    Player: <input id="userId" type="text" placeholder="your name">
+  </div>
+
+  <h2>ROMs</h2>
+  <ul id="roms"></ul>
+  <div id="status"></div>
+
+  <div id="playArea" class="hidden">
+    <div id="playHeader">
+      <strong id="playingLabel"></strong>
+      <button id="stopBtn">Stop</button>
+    </div>
+    <video id="gameVideo" autoplay muted playsinline></video>
+  </div>
+
+  <script>
+    const userIdInput = document.getElementById("userId");
+    userIdInput.value = localStorage.getItem("container-emulator-userId") || "";
+    userIdInput.addEventListener("change", () => {
+      localStorage.setItem("container-emulator-userId", userIdInput.value.trim());
+    });
+
+    const romsList = document.getElementById("roms");
+    const statusEl = document.getElementById("status");
+    const playArea = document.getElementById("playArea");
+    const playingLabel = document.getElementById("playingLabel");
+    const gameVideo = document.getElementById("gameVideo");
+    const stopBtn = document.getElementById("stopBtn");
+
+    let activeSessionId = null;
+    let pc = null;
+    let ws = null;
+    let inputChannel = null;
+
+    const GAME_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Shift", "z", "x", "a", "s", "q", "w"]);
+
+    function sendKey(event, type) {
+      if (!inputChannel || inputChannel.readyState !== "open") return;
+      if (event.target.tagName === "INPUT" || !GAME_KEYS.has(event.key)) return;
+      event.preventDefault();
+      if (type === "down" && event.repeat) return;
+      inputChannel.send(JSON.stringify({ t: type, key: event.key }));
+    }
+    window.addEventListener("keydown", (e) => sendKey(e, "down"));
+    window.addEventListener("keyup", (e) => sendKey(e, "up"));
+
+    function connectStream(sessionId) {
+      pc = new RTCPeerConnection({ iceServers: [] });
+      ws = new WebSocket(`ws://${location.host}/stream/${sessionId}`);
+
+      pc.ontrack = (e) => {
+        // Ask the browser to render frames as soon as they decode instead of
+        // holding them in its jitter buffer — latency matters more than
+        // smoothness for a game.
+        if ("jitterBufferTarget" in e.receiver) e.receiver.jitterBufferTarget = 0;
+        if ("playoutDelayHint" in e.receiver) e.receiver.playoutDelayHint = 0;
+        gameVideo.srcObject = e.streams[0] || new MediaStream([e.track]);
+      };
+      pc.ondatachannel = (e) => { inputChannel = e.channel; };
+      pc.onicecandidate = (e) => {
+        if (e.candidate && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "ice", candidate: e.candidate.candidate, sdpMLineIndex: e.candidate.sdpMLineIndex }));
+        }
+      };
+
+      // Server candidates can arrive before its offer is applied; hold them.
+      let remoteReady = false;
+      const pendingIce = [];
+      let chain = Promise.resolve();
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        chain = chain.then(async () => {
+          if (msg.type === "offer") {
+            await pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: "answer", sdp: answer.sdp }));
+            remoteReady = true;
+            for (const c of pendingIce.splice(0)) await pc.addIceCandidate(c);
+          } else if (msg.type === "ice") {
+            const cand = { candidate: msg.candidate, sdpMLineIndex: msg.sdpMLineIndex };
+            if (remoteReady) await pc.addIceCandidate(cand);
+            else pendingIce.push(cand);
+          }
+        }).catch((err) => setStatus(`Stream error: ${err.message}`));
+      };
+      ws.onerror = () => setStatus("Could not reach the game stream.");
+    }
+
+    function disconnectStream() {
+      if (ws) ws.close();
+      if (pc) pc.close();
+      ws = pc = inputChannel = null;
+      gameVideo.srcObject = null;
+    }
+
+    function setStatus(msg) {
+      statusEl.textContent = msg || "";
+    }
+
+    async function loadRoms() {
+      const res = await fetch("/roms");
+      const data = await res.json();
+      romsList.innerHTML = "";
+      if (!data.roms.length) {
+        romsList.innerHTML = "<li>No ROMs found — add one to the server's roms/ folder.</li>";
+        return;
+      }
+      for (const rom of data.roms) {
+        const li = document.createElement("li");
+        const name = document.createElement("span");
+        name.textContent = rom;
+        const btn = document.createElement("button");
+        btn.textContent = "Play";
+        btn.addEventListener("click", () => startSession(rom));
+        li.append(name, btn);
+        romsList.appendChild(li);
+      }
+    }
+
+    async function startSession(game) {
+      const userId = userIdInput.value.trim();
+      if (!userId) {
+        setStatus("Enter a player name first.");
+        return;
+      }
+      setStatus(`Starting ${game}...`);
+      const res = await fetch("/sessions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId, game }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error || "Failed to start session.");
+        return;
+      }
+      activeSessionId = data.sessionId;
+      playingLabel.textContent = `Playing ${game} as ${userId}`;
+      playArea.classList.remove("hidden");
+      setStatus("");
+      connectStream(data.sessionId);
+    }
+
+    stopBtn.addEventListener("click", async () => {
+      if (!activeSessionId) return;
+      setStatus("Stopping...");
+      disconnectStream();
+      await fetch(`/sessions/${activeSessionId}`, { method: "DELETE" });
+      activeSessionId = null;
+      playArea.classList.add("hidden");
+      setStatus("");
+    });
+
+    loadRoms();
+  </script>
+</body>
+</html>
