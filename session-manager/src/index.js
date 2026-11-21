@@ -5,7 +5,7 @@ const path = require("path");
 const { WebSocket, WebSocketServer } = require("ws");
 const { randomUUID } = require("crypto");
 const { startSession, stopSession, getLogs, inspect } = require("./dockerManager");
-const { listRoms } = require("./storage");
+const { listRoms, listStates } = require("./storage");
 const metrics = require("./metrics");
 
 const app = express();
@@ -34,6 +34,14 @@ app.post("/sessions", async (req, res) => {
   const { userId, game } = req.body || {};
   if (!userId || !game) {
     return res.status(400).json({ error: "userId and game are required" });
+  }
+  // userId becomes a directory name and game a file name inside the saves
+  // and roms mounts, so neither may carry path separators or ".." tricks.
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(userId)) {
+    return res.status(400).json({ error: "player name: 1-32 letters, digits, - or _" });
+  }
+  if (!listRoms().includes(game)) {
+    return res.status(400).json({ error: "unknown game" });
   }
 
   const stopTimer = metrics.sessionStartDuration.startTimer();
@@ -73,6 +81,12 @@ app.get("/sessions/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get("/sessions/:id/states", (req, res) => {
+  const session = sessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: "unknown session" });
+  res.json({ slots: listStates(session.userId, session.game) });
 });
 
 app.get("/sessions/:id/logs", async (req, res) => {

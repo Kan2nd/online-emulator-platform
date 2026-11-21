@@ -10,7 +10,9 @@ import asyncio
 import ctypes
 import json
 import os
+import queue
 import threading
+import time
 
 import gi
 
@@ -160,12 +162,61 @@ class Peer:
     def _on_input(self, _channel, text):
         try:
             msg = json.loads(text)
+            if msg.get("t") == "cmd":
+                commands.run(msg["action"], msg.get("slot"))
+                return
             keysym = KEYMAP[msg["key"]]
             down = {"down": True, "up": False}[msg["t"]]
         except (ValueError, KeyError, TypeError):
             return
         if keys is not None:
             keys.send(keysym, down)
+
+
+class RetroArchCommands:
+    """Writes RetroArch stdin commands (stdin_cmd_enable) through the FIFO.
+
+    This RetroArch has no "save to slot N" command, only slot +/-, so the
+    current slot is tracked here. Commands act like one-frame hotkey presses,
+    so two in the same frame can merge; a worker thread spaces them out.
+    """
+
+    MAX_SLOT = 3
+    GAP_SECONDS = 0.08  # ~5 frames at 60 fps
+
+    def __init__(self, path):
+        self.path = path
+        self.fd = None
+        self.slot = 0
+        self.lock = threading.Lock()
+        self.queue = queue.Queue()
+        threading.Thread(target=self._worker, daemon=True).start()
+
+    def run(self, action, slot=None):
+        with self.lock:
+            if action in ("save", "load"):
+                if not isinstance(slot, int) or not 0 <= slot <= self.MAX_SLOT:
+                    return
+                step = "STATE_SLOT_PLUS" if slot > self.slot else "STATE_SLOT_MINUS"
+                for _ in range(abs(slot - self.slot)):
+                    self.queue.put(step)
+                self.slot = slot
+                self.queue.put("SAVE_STATE" if action == "save" else "LOAD_STATE")
+            elif action == "reset":
+                self.queue.put("RESET")
+            elif action == "pause":
+                self.queue.put("PAUSE_TOGGLE")
+
+    def _worker(self):
+        while True:
+            command = self.queue.get()
+            if self.fd is None:
+                self.fd = os.open(self.path, os.O_WRONLY | os.O_NONBLOCK)
+            os.write(self.fd, (command + "\n").encode())
+            time.sleep(self.GAP_SECONDS)
+
+
+commands = RetroArchCommands(os.environ.get("RA_CMD_FIFO", "/tmp/ra_cmd"))
 
 
 current = None

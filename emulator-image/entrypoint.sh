@@ -62,6 +62,12 @@ for i in $(seq 1 100); do
 done
 export DISPLAY=":$(tr -d '\n' < "$DISPLAY_FILE")"
 
+# Command pipe into RetroArch's stdin (stdin_cmd_enable). Holding it open
+# read-write here means neither side blocks waiting for the other to open it.
+export RA_CMD_FIFO=/tmp/ra_cmd
+mkfifo "$RA_CMD_FIFO"
+exec 4<>"$RA_CMD_FIFO"
+
 python3 /usr/local/bin/webrtc_server.py &
 
 # RetroArch ignores --save/--savestate when redirecting saves into its own
@@ -77,10 +83,11 @@ echo "[entrypoint] save=$SAVE_FILE state=$STATE_FILE"
 
 # exec replaces this shell with retroarch as PID 1, so `docker stop` sends
 # SIGTERM directly to it and it gets a chance to flush SRAM before exiting.
+# -c makes our file the main config, so RetroArch doesn't generate one from
+# its skeleton and then fail to save it.
 exec retroarch \
   -L "$CORE" \
-  --save="$SAVE_FILE" \
-  --savestate="$STATE_FILE" \
-  --appendconfig="/config/retroarch.cfg|/tmp/session.cfg" \
+  -c /config/retroarch.cfg \
+  --appendconfig=/tmp/session.cfg \
   --verbose \
-  "$ROM"
+  "$ROM" <&4 4<&-
