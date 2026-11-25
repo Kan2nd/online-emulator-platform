@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-25T11:00:00Z",
+  "title": "Design System: Container Emulator",
+  "extensions": {
+    "colorMeta": {
+      "stamp":        { "role": "primary", "displayName": "Date-Stamp Blue", "canonical": "#2f5fe8", "tonalRamp": ["#0a1638", "#122661", "#1b3a92", "#2550cf", "#2f5fe8", "#5f84f0", "#9fb5f6", "#dbe4fc"] },
+      "stamp-hover":  { "role": "primary", "displayName": "Pressed Stamp", "canonical": "#2550cf", "tonalRamp": ["#081230", "#0f2058", "#183287", "#2550cf", "#3c66de", "#6d8de8", "#a8bbf3", "#dee6fb"] },
+      "stamp-text":   { "role": "primary", "displayName": "Stamp Ink", "canonical": "#86a8ff", "tonalRamp": ["#101c3f", "#1e3473", "#3054b0", "#5079e6", "#86a8ff", "#a6c0ff", "#c8d8ff", "#eaf0ff"] },
+      "stamp-wash":   { "role": "primary", "displayName": "Checkout Wash", "canonical": "rgba(47, 95, 232, .14)", "tonalRamp": ["rgba(47,95,232,.04)", "rgba(47,95,232,.08)", "rgba(47,95,232,.12)", "rgba(47,95,232,.14)", "rgba(47,95,232,.20)", "rgba(47,95,232,.28)", "rgba(47,95,232,.38)", "rgba(47,95,232,.50)"] },
+      "ground":       { "role": "neutral", "displayName": "Black Steel", "canonical": "#06080c", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "drawer":       { "role": "neutral", "displayName": "Drawer", "canonical": "#0c121c", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "drawer-2":     { "role": "neutral", "displayName": "Inner Drawer", "canonical": "#121b2a", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "rule":         { "role": "neutral", "displayName": "Hairline Rule", "canonical": "#1e2a3d", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "rule-strong":  { "role": "neutral", "displayName": "Strong Rule", "canonical": "#2c3c57", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "ink":          { "role": "neutral", "displayName": "Ledger Ink", "canonical": "#e7edf8", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "ink-2":        { "role": "neutral", "displayName": "Faded Ink", "canonical": "#9dadc8", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "ink-3":        { "role": "neutral", "displayName": "Margin Ink", "canonical": "#6f80a0", "tonalRamp": ["#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8", "#e7edf8"] },
+      "screen-black": { "role": "neutral", "displayName": "Screen Black", "canonical": "#000000", "tonalRamp": ["#000000", "#06080c", "#0c121c", "#121b2a", "#1e2a3d", "#2c3c57", "#6f80a0", "#9dadc8"] },
+      "good":         { "role": "status", "displayName": "Good (Stamp Ink)", "canonical": "#86a8ff", "tonalRamp": ["#101c3f", "#1e3473", "#3054b0", "#5079e6", "#86a8ff", "#a6c0ff", "#c8d8ff", "#eaf0ff"] },
+      "fair":         { "role": "status", "displayName": "Fair Amber", "canonical": "#f2b84b", "tonalRamp": ["#3a2706", "#64430c", "#946414", "#c98b22", "#f2b84b", "#f6cb7a", "#f9dea9", "#fdf2dc"] },
+      "poor":         { "role": "status", "displayName": "Poor Red", "canonical": "#ff7a7a", "tonalRamp": ["#1a0606", "#4a1212", "#7f1f1f", "#c23a3a", "#ff7a7a", "#ff9c9c", "#ffc0c0", "#ffe6e6"] }
+    },
+    "typographyMeta": {
+      "display":     { "displayName": "Display", "purpose": "Overlay title on the game screen; condensed drawer-label caps." },
+      "headline":    { "displayName": "Headline", "purpose": "Wordmark (22px); now-playing title uses the same voice at 20px." },
+      "title":       { "displayName": "Title", "purpose": "Section heads in condensed caps; slot names at 15px, field labels at 14px." },
+      "body":        { "displayName": "Body", "purpose": "Default reading text, catalog titles, button labels; normal width." },
+      "body-small":  { "displayName": "Body Small", "purpose": "Counts, hints, small buttons, health readout, key legends." },
+      "meta":        { "displayName": "Meta", "purpose": "Console names, slot recency, pending uploader and age." },
+      "call-number": { "displayName": "Call Number", "purpose": "GBA·001-style catalog numbers in Stamp Ink; 18px on the overlay plate." },
+      "stamp":       { "displayName": "Stamp", "purpose": "Date-stamp lettering on saved slots; tabular." },
+      "facts":       { "displayName": "Facts", "purpose": "Session readout table; tabular, right-aligned values." },
+      "key":         { "displayName": "Key Cap", "purpose": "kbd labels in the controls legend." }
+    },
+    "shadows": [
+      { "name": "float", "value": "0 8px 24px rgba(0, 0, 0, .45)", "purpose": "Toasts only; the one floating element." },
+      { "name": "key-press", "value": "0 1px 2px rgba(0, 0, 0, .5)", "purpose": "kbd key caps only." }
+    ],
+    "motion": [
+      { "name": "ease-press", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Stamp press and toast slide-in." },
+      { "name": "stamp-press", "value": "320ms ease-press; from rotate(-3deg) scale(1.55), opacity 0, blur(3px)", "purpose": "The signature move when a save lands; disabled under prefers-reduced-motion." },
+      { "name": "state-change", "value": "150ms", "purpose": "Button background and border-color transitions." },
+      { "name": "toast", "value": "opacity 200ms, transform 250ms ease-press; 14px rise; 3.2s dwell", "purpose": "Toast enter and exit." },
+      { "name": "progress", "value": "width 200ms", "purpose": "Upload progress fill." },
+      { "name": "arm-timeout", "value": "4000ms", "purpose": "Armed destructive button disarms itself." }
+    ],
+    "breakpoints": [
+      { "name": "toolbar-compact", "value": "640px" },
+      { "name": "rail-stack", "value": "900px" },
+      { "name": "lower-stack", "value": "1100px" }
+    ],
+    "focus": { "value": "outline: 2px solid var(--stamp-text); outline-offset: 2px; border-radius: 3px", "purpose": "Global :focus-visible ring; fields shift their stroke to --stamp-text instead." }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Default drawer-coloured key for secondary actions (Pause, Reset, Save, Load).",
+      "html": "<button class=\"ds-btn\" type=\"button\">Pause</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 6px 14px; background: var(--drawer-2, #121b2a); color: var(--ink, #e7edf8); border: 1px solid var(--rule-strong, #2c3c57); border-radius: 6px; font: 15px/1.5 Archivo, system-ui, sans-serif; cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap; } .ds-btn:hover { border-color: var(--stamp-text, #86a8ff); } .ds-btn:focus-visible { outline: 2px solid var(--stamp-text, #86a8ff); outline-offset: 2px; } .ds-btn:disabled { opacity: .45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled blue action: Play, Approve, Unlock.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Play</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 6px 14px; background: var(--stamp, #2f5fe8); color: #fff; border: 1px solid var(--stamp, #2f5fe8); border-radius: 6px; font: 600 15px/1.5 Archivo, system-ui, sans-serif; cursor: pointer; transition: background .15s, border-color .15s; } .ds-btn-primary:hover { background: var(--stamp-hover, #2550cf); border-color: var(--stamp-hover, #2550cf); } .ds-btn-primary:focus-visible { outline: 2px solid var(--stamp-text, #86a8ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button (two-step armed)",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action in poor red; the first click arms it, the second acts.",
+      "html": "<button class=\"ds-btn-danger\" type=\"button\">Delete</button> <button class=\"ds-btn-danger ds-armed\" type=\"button\">Confirm delete?</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; min-height: 28px; padding: 3px 10px; background: var(--drawer-2, #121b2a); color: var(--poor, #ff7a7a); border: 1px solid var(--rule-strong, #2c3c57); border-radius: 6px; font: 13px/1.5 Archivo, system-ui, sans-serif; cursor: pointer; transition: background .15s, border-color .15s; } .ds-btn-danger:hover { border-color: var(--poor, #ff7a7a); } .ds-btn-danger:focus-visible { outline: 2px solid var(--stamp-text, #86a8ff); outline-offset: 2px; } .ds-btn-danger:disabled { color: var(--ink-3, #6f80a0); opacity: .45; cursor: not-allowed; } .ds-btn-danger.ds-armed, .ds-btn-danger.ds-armed:hover { background: var(--drawer, #0c121c); border-color: var(--poor, #ff7a7a); color: var(--poor, #ff7a7a); font-weight: 600; }"
+    },
+    {
+      "name": "Player Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text field on the black steel ground; focus shifts the stroke to Stamp Ink.",
+      "html": "<input class=\"ds-field\" type=\"text\" placeholder=\"your name\">",
+      "css": ".ds-field { background: var(--ground, #06080c); color: var(--ink, #e7edf8); border: 1px solid var(--rule-strong, #2c3c57); border-radius: 6px; padding: 6px 10px; min-height: 34px; width: 170px; font: 15px/1.5 Archivo, system-ui, sans-serif; caret-color: var(--stamp-text, #86a8ff); } .ds-field::placeholder { color: var(--ink-3, #6f80a0); } .ds-field:focus { outline: none; border-color: var(--stamp-text, #86a8ff); }"
+    },
+    {
+      "name": "Catalog Row",
+      "kind": "custom",
+      "refersTo": "catalog-entry",
+      "description": "Ruled catalog row: call number, title and console, Play. The checked-out row takes the blue wash.",
+      "html": "<ul class=\"ds-catalog\"><li class=\"ds-entry\"><span class=\"ds-callno\">GBA·001</span><div><div class=\"ds-entry-title\">Pokemon Emerald</div><div class=\"ds-entry-meta\">Game Boy Advance</div></div><button class=\"ds-play\" type=\"button\">Play</button></li><li class=\"ds-entry ds-active\"><span class=\"ds-callno\">NES·001</span><div><div class=\"ds-entry-title\">Metroid</div><div class=\"ds-entry-meta\">NES</div></div><button class=\"ds-play\" type=\"button\" disabled>Playing</button></li></ul>",
+      "css": ".ds-catalog { list-style: none; margin: 0; padding: 0; width: 320px; border-top: 1px solid var(--rule, #1e2a3d); background: var(--drawer, #0c121c); font: 15px/1.5 Archivo, system-ui, sans-serif; color: var(--ink, #e7edf8); } .ds-entry { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--rule, #1e2a3d); } .ds-entry.ds-active { background: var(--stamp-wash, rgba(47, 95, 232, .14)); } .ds-callno { font-stretch: 68%; font-weight: 700; font-size: 14px; letter-spacing: .03em; color: var(--stamp-text, #86a8ff); } .ds-entry-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-entry-meta { color: var(--ink-3, #6f80a0); font-size: 12px; } .ds-play { min-height: 28px; padding: 3px 10px; font: 600 13px/1.5 Archivo, sans-serif; background: var(--stamp, #2f5fe8); color: #fff; border: 1px solid var(--stamp, #2f5fe8); border-radius: 6px; cursor: pointer; } .ds-play:hover:not(:disabled) { background: var(--stamp-hover, #2550cf); } .ds-play:focus-visible { outline: 2px solid var(--stamp-text, #86a8ff); outline-offset: 2px; } .ds-play:disabled { opacity: .45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Save Slot with Date Stamp",
+      "kind": "card",
+      "refersTo": "save-slot",
+      "description": "Signature component: a drawer slot whose save is marked by a tilted, double-ruled blue date stamp that presses in when the save lands.",
+      "html": "<div class=\"ds-slots\"><article class=\"ds-slot\"><div class=\"ds-slot-head\"><span class=\"ds-slot-name\">Slot 1</span><span class=\"ds-when\">just now</span></div><span class=\"ds-stamp\">Saved 25 Nov · 14:02</span><div class=\"ds-slot-actions\"><button class=\"ds-sbtn\" type=\"button\">Save</button><button class=\"ds-sbtn\" type=\"button\">Load</button></div></article><article class=\"ds-slot ds-empty\"><div class=\"ds-slot-head\"><span class=\"ds-slot-name\">Slot 2</span></div><span class=\"ds-empty-text\">Empty</span><div class=\"ds-slot-actions\"><button class=\"ds-sbtn\" type=\"button\">Save</button><button class=\"ds-sbtn\" type=\"button\" disabled>Load</button></div></article></div>",
+      "css": ".ds-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: 12px; font: 15px/1.5 Archivo, system-ui, sans-serif; color: var(--ink, #e7edf8); } .ds-slot { background: var(--drawer, #0c121c); border: 1px solid var(--rule, #1e2a3d); border-radius: 6px; padding: 12px 14px; min-height: 118px; display: flex; flex-direction: column; gap: 8px; } .ds-slot.ds-empty { border-style: dashed; } .ds-slot-head { display: flex; justify-content: space-between; align-items: baseline; } .ds-slot-name { font-stretch: 68%; font-weight: 700; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; } .ds-when { color: var(--ink-3, #6f80a0); font-size: 12px; } .ds-stamp { align-self: flex-start; transform: rotate(-3deg); border: 2px solid var(--stamp-text, #86a8ff); outline: 1px solid var(--stamp-text, #86a8ff); outline-offset: 2px; border-radius: 3px; padding: 2px 8px; color: var(--stamp-text, #86a8ff); font-stretch: 70%; font-weight: 800; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; font-variant-numeric: tabular-nums; opacity: .92; animation: ds-press .32s cubic-bezier(.16, 1, .3, 1); } @keyframes ds-press { from { transform: rotate(-3deg) scale(1.55); opacity: 0; filter: blur(3px); } to { transform: rotate(-3deg) scale(1); opacity: .92; filter: blur(0); } } @media (prefers-reduced-motion: reduce) { .ds-stamp { animation: none; } } .ds-empty-text { color: var(--ink-3, #6f80a0); font-size: 13px; } .ds-slot-actions { display: flex; gap: 8px; margin-top: auto; } .ds-sbtn { flex: 1; min-height: 28px; padding: 3px 10px; font: 13px/1.5 Archivo, sans-serif; background: var(--drawer-2, #121b2a); color: var(--ink, #e7edf8); border: 1px solid var(--rule-strong, #2c3c57); border-radius: 6px; cursor: pointer; transition: border-color .15s; } .ds-sbtn:hover:not(:disabled) { border-color: var(--stamp-text, #86a8ff); } .ds-sbtn:focus-visible { outline: 2px solid var(--stamp-text, #86a8ff); outline-offset: 2px; } .ds-sbtn:disabled { opacity: .45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Session Facts with Health Ramp",
+      "kind": "custom",
+      "refersTo": "facts",
+      "description": "Tabular machine readout; frame rate and round trip carry a dot from the one fixed health ramp.",
+      "html": "<table class=\"ds-facts\"><tbody><tr><th>Container</th><td>3f9a2c71b0de</td></tr><tr><th>Signal port</th><td>8443</td></tr><tr><th>Frame rate</th><td><i class=\"ds-lvl\" data-level=\"good\"></i>60 fps</td></tr><tr><th>Round trip</th><td><i class=\"ds-lvl\" data-level=\"fair\"></i>142 ms</td></tr></tbody></table>",
+      "css": ".ds-facts { width: 300px; border-collapse: collapse; font: 14px/1.5 Archivo, system-ui, sans-serif; color: var(--ink, #e7edf8); } .ds-facts th { text-align: left; font-weight: 400; color: var(--ink-2, #9dadc8); padding: 7px 0; border-bottom: 1px solid var(--rule, #1e2a3d); width: 42%; } .ds-facts td { padding: 7px 0; border-bottom: 1px solid var(--rule, #1e2a3d); font-variant-numeric: tabular-nums; text-align: right; } .ds-lvl { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--ink-3, #6f80a0); } .ds-lvl[data-level=good] { background: var(--good, #86a8ff); } .ds-lvl[data-level=fair] { background: var(--fair, #f2b84b); } .ds-lvl[data-level=poor] { background: var(--poor, #ff7a7a); }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Header drawer with condensed wordmark (second word in Stamp Ink), player field and Admin toggle.",
+      "html": "<header class=\"ds-topbar\"><h1 class=\"ds-wordmark\">Container <span>Emulator</span></h1><div class=\"ds-grow\"></div><label class=\"ds-who\">Player</label><input class=\"ds-tfield\" placeholder=\"your name\"><button class=\"ds-tbtn\" type=\"button\">Admin</button></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; gap: 10px; padding: 12px 24px; background: var(--drawer, #0c121c); border-bottom: 1px solid var(--rule, #1e2a3d); font: 15px/1.5 Archivo, system-ui, sans-serif; color: var(--ink, #e7edf8); } .ds-wordmark { margin: 0; font-size: 22px; line-height: 1; font-stretch: 68%; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; } .ds-wordmark span { color: var(--stamp-text, #86a8ff); } .ds-grow { flex: 1; } .ds-who { color: var(--ink-2, #9dadc8); font-size: 13px; } .ds-tfield { background: var(--ground, #06080c); color: inherit; border: 1px solid var(--rule-strong, #2c3c57); border-radius: 6px; padding: 6px 10px; min-height: 34px; width: 150px; font: inherit; } .ds-tfield:focus { outline: none; border-color: var(--stamp-text, #86a8ff); } .ds-tbtn { min-height: 28px; padding: 3px 10px; font: 13px/1.5 Archivo, sans-serif; background: var(--drawer-2, #121b2a); color: inherit; border: 1px solid var(--rule-strong, #2c3c57); border-radius: 6px; cursor: pointer; } .ds-tbtn:hover { border-color: var(--stamp-text, #86a8ff); } .ds-tbtn:focus-visible { outline: 2px solid var(--stamp-text, #86a8ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Key Cap",
+      "kind": "chip",
+      "refersTo": "key-cap",
+      "description": "Controls legend key caps; one of the two shadowed elements.",
+      "html": "<span class=\"ds-keys\"><kbd class=\"ds-kbd\">X</kbd> A <kbd class=\"ds-kbd\">Enter</kbd> Start</span>",
+      "css": ".ds-keys { color: var(--ink-2, #9dadc8); font: 13px/1.5 Archivo, sans-serif; } .ds-kbd { display: inline-block; min-width: 26px; text-align: center; font: 600 12px/1 Archivo, sans-serif; font-stretch: 75%; background: var(--drawer-2, #121b2a); border: 1px solid var(--rule-strong, #2c3c57); border-radius: 4px; padding: 3px 6px; color: var(--ink, #e7edf8); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lending Ledger",
+    "overview": "The shared game library is kept like a lending library: every game is catalogued with a call number, every play is a checkout into its own container, and every save is stamped with its date. The ground is black steel; the panels are blue-black drawers pulled out of it; one date-stamp blue does all the marking. Content removed, the world is still recognisable: black drawers, blue stamped boxes, call numbers.\n\nDensity is that of an operating ledger, not a launcher. Rows are separated by hairline rules rather than boxed into cards; facts are set as a tabular readout with right-aligned figures; the game screen leads at full width and everything else supports it. There is no cover art and no tile grid: the catalog is a list of call numbers and titles. Machinery is shown honestly; container id, signal port, frame rate and round trip are first-class facts, coloured by one fixed health ramp.\n\nTwo voices carry the type: condensed Archivo caps for drawer labels (headings, call numbers, stamps) over plain Archivo at normal width for everything a person reads. Figures are tabular wherever they are counted or compared.",
+    "keyCharacteristics": [
+      "Black steel ground (`ground`) with blue-black drawer panels (`drawer`, `drawer-2`) and hairline rules.",
+      "One blue: the stamp blue marks call numbers, stamps, selection, primary actions and focus. Nothing else is blue unless it is that blue.",
+      "Condensed uppercase drawer labels over a plain grotesk body; tabular figures for every number.",
+      "Signature move: a double-ruled blue date stamp, tilted -3deg, pressing onto a save slot when a save lands.",
+      "One fixed health ramp (good / fair / poor) used everywhere stream quality shows.",
+      "Flat, ruled surfaces; depth only for things that float (toast) or are pressed (key caps)."
+    ],
+    "rules": [
+      { "name": "The One Blue Rule", "body": "Every blue on screen is a stamp blue (`stamp`, `stamp-text`, `stamp-hover`, `stamp-wash`). Blue means \"marked by the library\": a call number, a stamp, a selection, a focus, the primary action. Never introduce a second blue or a decorative blue.", "section": "colors" },
+      { "name": "The Fixed Ramp Rule", "body": "Stream quality uses exactly three levels (good >= 55 fps / <= 120 ms, fair >= 40 fps / <= 200 ms, poor below) plus a neutral `ink-3` \"off\" for paused, starting or offline. The toolbar shows the worse of the two readings. The same dot and colours appear wherever quality shows; no other component invents its own status colours.", "section": "colors" },
+      { "name": "The Drawer Label Rule", "body": "Condensed uppercase is for labels only: headings, call numbers, stamps, the wordmark. Sentences, titles of games, values and button text stay at normal width and in sentence case.", "section": "typography" },
+      { "name": "The Tabular Figures Rule", "body": "Any number that is counted, compared or ticks (counts, ports, fps, ms, timestamps, stamps) is set with tabular figures.", "section": "typography" },
+      { "name": "The Drawer Not Card Rule", "body": "Panels are drawers pulled from the steel: a tone step and a rule, never a shadow. A new panel takes `drawer` or `drawer-2` and a `rule` edge.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** keep every blue a stamp blue: `stamp` for fills, `stamp-text` for ink, focus and hover strokes.",
+      "**Do** set headings, call numbers and stamps in condensed (68-70% width) bold uppercase Archivo, and everything else at normal width.",
+      "**Do** use tabular figures for every count, port, fps, latency and timestamp.",
+      "**Do** separate list rows with hairline `rule` lines and layer panels by tone (`ground` < `drawer` < `drawer-2`).",
+      "**Do** use the fixed good / fair / poor ramp, with an `ink-3` neutral for off or paused, anywhere stream quality appears.",
+      "**Do** guard destructive actions with the two-step armed button in `poor`.",
+      "**Do** use dashed borders for things that are empty or not yet live (empty slots, pending queue, pre-checkout ledger line).",
+      "**Do** keep the game screen as the largest thing on the page, leading at full width."
+    ],
+    "donts": [
+      "**Don't** build a launcher grid of cover tiles or invent box art; games are catalogue rows with call numbers.",
+      "**Don't** introduce a second accent hue or a green \"good\" state; good is the stamp's own blue.",
+      "**Don't** put shadows on panels, slots or buttons; only toasts and key caps cast shadows.",
+      "**Don't** set sentences, game titles or button labels in condensed caps.",
+      "**Don't** fill an armed destructive button; armed is a `poor` outline on the drawer ground.",
+      "**Don't** tilt, double-rule or animate anything other than the date stamp; the press belongs to the save landing."
+    ]
+  }
+}

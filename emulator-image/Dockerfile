@@ -27,6 +27,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY webrtc_server.py /usr/local/bin/webrtc_server.py
 
+# Build GStreamer's plugin registry now: otherwise every fresh session
+# container scans every plugin before it can stream (~15s on a busy CPU).
+RUN python3 -c "import gi; gi.require_version('Gst', '1.0'); from gi.repository import Gst; Gst.init(None); assert Gst.ElementFactory.find('webrtcbin')"
+
 # No EXPOSE/port publishing: the container runs with host networking (see
 # dockerManager.js) so WebRTC ICE candidates are the host's real addresses.
 

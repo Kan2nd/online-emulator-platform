@@ -157,6 +157,21 @@ Alertmanager, and cAdvisor alongside `session-manager`.
   Loki Docker logging driver — one-time setup:
   `docker plugin install grafana/loki-docker-driver:latest --alias loki`.
 
+## Uploading games and the admin key
+
+Anyone can upload a `.gba` or `.nes` ROM from the web UI ("Add a game").
+Uploads land in `roms/.pending/` and appear under "Awaiting approval"; they
+can't be played until the admin approves them. The server checks the real
+ROM header (not just the extension), caps uploads at 48 MB, and holds at
+most 20 pending files.
+
+The admin approves or rejects uploads and is the only one who can delete
+games. Admin access is a single key set as `ADMIN_TOKEN` in the server's
+`.env` (never committed). Generate one with `openssl rand -hex 24`, then
+in the UI click **Admin**, paste the key, and **Unlock**. Read it back on
+the server with `grep ADMIN_TOKEN ~/container-emulator/.env`. Without
+`ADMIN_TOKEN` set, admin actions are refused.
+
 ## Legal note
 
 ROM distribution is legally murky almost everywhere, even for games you own

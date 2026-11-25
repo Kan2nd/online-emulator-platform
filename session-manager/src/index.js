@@ -3,9 +3,18 @@
 const express = require("express");
 const path = require("path");
 const { WebSocket, WebSocketServer } = require("ws");
-const { randomUUID } = require("crypto");
+const { createHash, randomUUID, timingSafeEqual } = require("crypto");
 const { startSession, stopSession, getLogs, inspect } = require("./dockerManager");
-const { listRoms, listStates } = require("./storage");
+const {
+  listRoms,
+  listStates,
+  listPending,
+  savePending,
+  approvePending,
+  rejectPending,
+  deleteRom,
+  UploadError,
+} = require("./storage");
 const metrics = require("./metrics");
 
 const app = express();
@@ -26,9 +35,98 @@ app.get("/metrics", async (_req, res) => {
   res.end(await metrics.register.metrics());
 });
 
+const PLAYER_NAME = /^[A-Za-z0-9_-]{1,32}$/;
+
 app.get("/roms", (_req, res) => {
-  res.json({ roms: listRoms() });
+  // Pending uploads are listed by name for everyone so an uploader can see
+  // theirs is queued; only approved files are playable.
+  res.json({
+    roms: listRoms(),
+    pending: listPending().map(({ name, uploader, uploadedAt }) => ({ name, uploader, uploadedAt })),
+  });
 });
+
+app.post(
+  "/roms/upload",
+  express.raw({ type: "application/octet-stream", limit: "48mb" }),
+  (req, res) => {
+    const uploader = String(req.query.player || "");
+    if (!PLAYER_NAME.test(uploader)) {
+      return res.status(400).json({ error: "Enter a player name before uploading." });
+    }
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ error: "The upload was empty." });
+    }
+    try {
+      const name = savePending(req.query.name, req.body, uploader);
+      res.status(201).json({ name, status: "pending" });
+    } catch (err) {
+      res.status(err instanceof UploadError ? err.status : 500).json({ error: err.message });
+    }
+  }
+);
+
+// Single shared admin token from the server's environment (.env, never the
+// repo). Both sides are hashed first so the comparison is constant-time
+// regardless of the guess's length.
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const digest = (value) => createHash("sha256").update(value).digest();
+
+function requireAdmin(req, res, next) {
+  if (!ADMIN_TOKEN) {
+    return res.status(503).json({ error: "Admin access isn't configured on this server." });
+  }
+  const given = String(req.get("x-admin-token") || "");
+  if (!given || !timingSafeEqual(digest(given), digest(ADMIN_TOKEN))) {
+    return res.status(401).json({ error: "Wrong admin key." });
+  }
+  next();
+}
+
+function adminAction(fn) {
+  return (req, res) => {
+    try {
+      fn(req, res);
+    } catch (err) {
+      res.status(err instanceof UploadError ? err.status : 500).json({ error: err.message });
+    }
+  };
+}
+
+app.get("/admin/check", requireAdmin, (_req, res) => res.status(204).end());
+
+app.get("/admin/pending", requireAdmin, (_req, res) => res.json({ pending: listPending() }));
+
+app.post(
+  "/admin/pending/:name/approve",
+  requireAdmin,
+  adminAction((req, res) => {
+    approvePending(req.params.name);
+    res.status(204).end();
+  })
+);
+
+app.delete(
+  "/admin/pending/:name",
+  requireAdmin,
+  adminAction((req, res) => {
+    rejectPending(req.params.name);
+    res.status(204).end();
+  })
+);
+
+app.delete(
+  "/admin/roms/:name",
+  requireAdmin,
+  adminAction((req, res) => {
+    const inUse = [...sessions.values()].some((s) => s.game === req.params.name);
+    if (inUse) {
+      return res.status(409).json({ error: "Someone is playing that game right now." });
+    }
+    deleteRom(req.params.name);
+    res.status(204).end();
+  })
+);
 
 app.post("/sessions", async (req, res) => {
   const { userId, game } = req.body || {};
@@ -37,7 +135,7 @@ app.post("/sessions", async (req, res) => {
   }
   // userId becomes a directory name and game a file name inside the saves
   // and roms mounts, so neither may carry path separators or ".." tricks.
-  if (!/^[A-Za-z0-9_-]{1,32}$/.test(userId)) {
+  if (!PLAYER_NAME.test(userId)) {
     return res.status(400).json({ error: "player name: 1-32 letters, digits, - or _" });
   }
   if (!listRoms().includes(game)) {

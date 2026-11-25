@@ -4,134 +4,283 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Container Emulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #101216; --panel: #181b21; --panel-2: #20242c; --line: #2c313a;
-    --text: #e8eaed; --muted: #9aa0a9; --accent: #6c8cff; --accent-2: #4f6fe0;
-    --ok: #3ccf8e; --warn: #f2b84b; --danger: #ef5b5b; --radius: 10px;
+    --ground: #06080c;
+    --drawer: #0c121c;
+    --drawer-2: #121b2a;
+    --rule: #1e2a3d;
+    --rule-strong: #2c3c57;
+    --ink: #e7edf8;
+    --ink-2: #9dadc8;
+    --ink-3: #6f80a0;
+    --stamp: #2f5fe8;
+    --stamp-hover: #2550cf;
+    --stamp-text: #86a8ff;
+    --stamp-wash: rgba(47, 95, 232, .14);
+    --good: #86a8ff;
+    --fair: #f2b84b;
+    --poor: #ff7a7a;
+    --radius: 6px;
+    --label: "Archivo", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  button { font: inherit; color: inherit; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.primary:hover:not(:disabled) { background: var(--accent-2); }
-  button.danger { border-color: #5a2a2a; color: #ffb3b3; }
-  input { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; width: 180px; }
-  input:focus { outline: none; border-color: var(--accent); }
+  [hidden] { display: none !important; }
+  html { color-scheme: dark; scrollbar-color: var(--rule-strong) var(--ground); }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.5 "Archivo", system-ui, sans-serif; font-stretch: 100%; caret-color: var(--stamp-text); }
+  ::selection { background: var(--stamp); color: #fff; }
+  :focus-visible { outline: 2px solid var(--stamp-text); outline-offset: 2px; border-radius: 3px; }
+  button, input { font: inherit; color: inherit; }
+  .num { font-variant-numeric: tabular-nums; }
 
-  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .2px; }
-  .player-field { display: flex; align-items: center; gap: 8px; color: var(--muted); }
-  .field-error { color: var(--danger); font-size: 12px; min-height: 16px; }
+  /* Drawer-label voice: condensed caps, used for headings and labels only. */
+  .label { font-family: var(--label); font-stretch: 68%; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 
-  main { display: grid; grid-template-columns: 280px 1fr; gap: 20px; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
-  @media (max-width: 820px) { main { grid-template-columns: 1fr; padding: 16px; } }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 6px 14px; background: var(--drawer-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap; }
+  .btn:hover:not(:disabled) { border-color: var(--stamp-text); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: var(--stamp); border-color: var(--stamp); color: #fff; font-weight: 600; }
+  .btn.primary:hover:not(:disabled) { background: var(--stamp-hover); border-color: var(--stamp-hover); }
+  .btn.small { min-height: 28px; padding: 3px 10px; font-size: 13px; }
+  .btn.danger { color: var(--poor); }
+  .btn.danger:hover:not(:disabled) { border-color: var(--poor); }
+  .btn.danger:disabled { color: var(--ink-3); }
+  /* Two-step confirm: the first click arms the button, the second acts. */
+  .btn.armed, .btn.armed:hover:not(:disabled) { background: var(--drawer); border-color: var(--poor); color: var(--poor); font-weight: 600; }
+  .lvl { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--ink-3); }
+  .lvl[data-level="good"] { background: var(--good); }
+  .lvl[data-level="fair"] { background: var(--fair); }
+  .lvl[data-level="poor"] { background: var(--poor); }
+  .token { color: var(--stamp-text); font-weight: 600; }
+  .field { background: var(--ground); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 6px 10px; min-height: 34px; width: 170px; }
+  .field:focus { outline: none; border-color: var(--stamp-text); }
+  .field::placeholder { color: var(--ink-3); }
 
-  .rom { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 8px; border: 1px solid transparent; }
-  .rom + .rom { margin-top: 6px; }
-  .rom.active { border-color: var(--accent); background: var(--panel-2); }
-  .rom-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #2b3550; color: #b8c6ff; margin-right: 8px; }
-  .empty { color: var(--muted); font-size: 13px; }
+  /* Shell */
+  .topbar { display: flex; align-items: center; gap: 20px; padding: 12px 24px; border-bottom: 1px solid var(--rule); background: var(--drawer); flex-wrap: wrap; }
+  .wordmark { font-size: 22px; line-height: 1; margin: 0; }
+  .wordmark span { color: var(--stamp-text); }
+  .topbar .grow { flex: 1; }
+  .who { display: flex; align-items: center; gap: 10px; }
+  .who label { color: var(--ink-2); font-size: 13px; }
+  .hint-error { color: var(--poor); font-size: 13px; }
 
-  .screen { position: relative; background: #000; border-radius: 8px; overflow: hidden; aspect-ratio: 3 / 2; display: grid; place-items: center; }
+  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: calc(100vh - 59px); }
+  .rail { border-right: 1px solid var(--rule); background: var(--drawer); padding: 20px 18px 28px; display: flex; flex-direction: column; gap: 28px; }
+  .work { padding: 22px 28px 40px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .rail { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .work { padding: 18px 16px 32px; }
+  }
+
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
+  .section-head h2 { margin: 0; font-size: 17px; color: var(--ink); }
+  .section-head .count { color: var(--ink-3); font-size: 13px; }
+
+  /* Catalog */
+  .catalog { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  .entry { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--rule); }
+  .entry.active { background: var(--stamp-wash); }
+  .callno { font-family: var(--label); font-stretch: 68%; font-weight: 700; font-size: 14px; color: var(--stamp-text); letter-spacing: .03em; }
+  .entry-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry-meta { color: var(--ink-3); font-size: 12px; }
+  .entry-actions { display: flex; gap: 6px; }
+  .empty-note { color: var(--ink-2); font-size: 14px; padding: 12px 6px; border-bottom: 1px solid var(--rule); }
+
+  .queue { list-style: none; margin: 0; padding: 0; border-top: 1px dashed var(--rule-strong); }
+  .queue li { padding: 9px 6px; border-bottom: 1px dashed var(--rule-strong); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+  .queue .entry-title { color: var(--ink-2); }
+
+  .upload { display: flex; flex-direction: column; gap: 8px; }
+  .upload p { margin: 0; color: var(--ink-3); font-size: 13px; }
+  .progress { height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; display: none; }
+  .progress > div { height: 100%; width: 0; background: var(--stamp); transition: width .2s; }
+
+  .admin-box { border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--ground); }
+  .admin-box .row { display: flex; gap: 8px; }
+  .admin-box .field { width: 100%; }
+  .admin-on { color: var(--stamp-text); font-size: 13px; }
+
+  /* Screen */
+  .screen { position: relative; width: 100%; max-height: calc(100vh - 260px); aspect-ratio: 3 / 2; margin: 0 auto; background: #000; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; }
   .screen video { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
-  .screen .overlay { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 20px; background: rgba(0,0,0,.55); }
-  .screen:fullscreen { border-radius: 0; }
+  .screen:fullscreen { border: 0; border-radius: 0; max-height: none; }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(6, 8, 12, .82); }
+  .overlay p { margin: 0; max-width: 42ch; color: var(--ink-2); }
+  .overlay strong { display: block; color: var(--ink); font-size: 26px; margin-bottom: 6px; }
+  .overlay-action:empty { display: none; }
+  .overlay-action { margin-top: 18px; display: inline-flex; align-items: center; gap: 14px; padding: 10px 12px 10px 16px; border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--drawer); }
+  .overlay-action:has(> .btn:only-child) { border: 0; background: none; padding: 0; }
+  .overlay-action .callno { font-size: 18px; }
+  .overlay-action .entry-title { max-width: 26ch; color: var(--ink); text-align: left; }
+  .ledger-line { margin: 0; padding: 14px 16px; border: 1px dashed var(--rule-strong); border-radius: var(--radius); color: var(--ink-2); font-size: 14px; }
 
-  .toolbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .toolbar .spacer { flex: 1; }
-  .stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: middle; }
-  .dot.live { background: var(--ok); } .dot.wait { background: var(--warn); }
-  .now-playing { font-weight: 600; }
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .now { font-size: 20px; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .health { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+  .health i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
+  .health[data-level="good"] i { background: var(--good); }
+  .health[data-level="fair"] i { background: var(--fair); }
+  .health[data-level="poor"] i { background: var(--poor); }
+  .toolbar .grow { flex: 1; }
+  .controls { display: flex; gap: 8px; }
+  @media (max-width: 640px) {
+    .toolbar .grow { display: none; }
+    .now { flex: 1 1 auto; }
+    .controls { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .controls .btn { padding: 6px 4px; }
+  }
 
-  .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-  @media (max-width: 560px) { .slots { grid-template-columns: repeat(2, 1fr); } }
-  .slot { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
-  .slot-title { font-weight: 600; }
-  .slot-time { font-size: 12px; color: var(--muted); margin: 2px 0 8px; min-height: 18px; }
-  .slot-actions { display: flex; gap: 6px; }
-  .slot-actions button { flex: 1; padding: 5px 0; }
+  .lower { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 28px; }
+  @media (max-width: 1100px) { .lower { grid-template-columns: 1fr; } }
 
-  .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 16px; color: var(--muted); font-size: 12px; }
-  kbd { font: 11px/1 ui-monospace, monospace; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px; color: var(--text); }
+  /* Save slots: the date-stamp is the world's one signature move. */
+  .slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .slot { position: relative; background: var(--drawer); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; min-height: 118px; display: flex; flex-direction: column; gap: 8px; }
+  .slot.empty { border-style: dashed; }
+  .slot-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .slot-head .label { font-size: 15px; }
+  .slot-head .when { color: var(--ink-3); font-size: 12px; }
+  .stamp { align-self: flex-start; transform: rotate(-3deg); border: 2px solid var(--stamp-text); outline: 1px solid var(--stamp-text); outline-offset: 2px; border-radius: 3px; padding: 2px 8px; color: var(--stamp-text); font-family: var(--label); font-stretch: 70%; font-weight: 800; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; opacity: .92; }
+  .stamp.fresh { animation: press .32s cubic-bezier(.16, 1, .3, 1); }
+  @keyframes press { from { transform: rotate(-3deg) scale(1.55); opacity: 0; filter: blur(3px); } to { transform: rotate(-3deg) scale(1); opacity: .92; filter: blur(0); } }
+  @media (prefers-reduced-motion: reduce) { .stamp.fresh { animation: none; } }
+  .slot-empty-text { color: var(--ink-3); font-size: 13px; }
+  .slot-actions { display: flex; gap: 8px; margin-top: auto; }
+  .slot-actions .btn { flex: 1; }
 
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  #toast.error { border-color: var(--danger); }
+  .facts { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .facts th { text-align: left; font-weight: 400; color: var(--ink-2); padding: 7px 0; border-bottom: 1px solid var(--rule); width: 42%; }
+  .facts td { padding: 7px 0; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; text-align: right; }
+
+  .keys { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--ink-2); font-size: 13px; }
+  kbd { display: inline-block; min-width: 26px; text-align: center; font: 600 12px/1 "Archivo", sans-serif; font-stretch: 75%; background: var(--drawer-2); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 3px 6px; color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 14px); background: var(--drawer-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 10px 16px; max-width: min(520px, calc(100vw - 32px)); opacity: 0; pointer-events: none; transition: opacity .2s, transform .25s cubic-bezier(.16, 1, .3, 1); box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.error { border-color: var(--poor); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Container Emulator</h1>
-    <div>
-      <label class="player-field">Player <input id="userId" type="text" placeholder="your name" maxlength="32" autocomplete="off"></label>
-      <div class="field-error" id="userError"></div>
+  <header class="topbar">
+    <h1 class="wordmark label">Container <span>Emulator</span></h1>
+    <div class="grow"></div>
+    <div class="who">
+      <label for="userId">Player</label>
+      <input id="userId" class="field" type="text" placeholder="your name" maxlength="32" autocomplete="off" spellcheck="false">
+      <button id="adminToggle" class="btn small" type="button" aria-expanded="false" aria-controls="adminBox">Admin</button>
     </div>
+    <div id="userError" class="hint-error" role="alert"></div>
   </header>
 
-  <main>
-    <section class="panel">
-      <h2>Library</h2>
-      <div id="roms"><div class="empty">Loading…</div></div>
-    </section>
+  <div class="layout">
+    <aside class="rail" aria-label="Game library">
+      <div id="adminBox" class="admin-box" hidden>
+        <div id="adminLocked">
+          <label class="label" for="adminKey" style="font-size:14px">Admin key</label>
+          <div class="row" style="margin-top:6px">
+            <input id="adminKey" class="field" type="password" autocomplete="current-password">
+            <button id="adminUnlock" class="btn small primary" type="button">Unlock</button>
+          </div>
+          <div id="adminError" class="hint-error" role="alert"></div>
+        </div>
+        <div id="adminUnlocked" hidden>
+          <div class="admin-on">Admin mode: you can approve, reject and delete games.</div>
+          <button id="adminLock" class="btn small" type="button" style="margin-top:8px">Lock admin</button>
+        </div>
+      </div>
 
-    <section class="panel">
-      <div class="screen" id="screen">
-        <video id="gameVideo" autoplay muted playsinline></video>
-        <div class="overlay" id="overlay">Pick a game from the library to start playing.</div>
+      <section aria-labelledby="catalogHead">
+        <div class="section-head"><h2 id="catalogHead" class="label">Catalog</h2><span id="catalogCount" class="count num"></span></div>
+        <ul id="catalog" class="catalog"><li class="empty-note">Loading the catalog…</li></ul>
+      </section>
+
+      <section aria-labelledby="queueHead">
+        <div class="section-head"><h2 id="queueHead" class="label">Awaiting approval</h2><span id="queueCount" class="count num"></span></div>
+        <ul id="queue" class="queue"></ul>
+      </section>
+
+      <section class="upload" aria-labelledby="uploadHead">
+        <h2 id="uploadHead" class="label" style="margin:0;font-size:17px">Add a game</h2>
+        <p>Upload a .gba or .nes ROM. It joins the catalog once the admin approves it.</p>
+        <input id="romFile" type="file" accept=".gba,.nes" class="sr-only">
+        <button id="uploadBtn" class="btn" type="button">Upload ROM</button>
+        <div id="progress" class="progress" aria-hidden="true"><div></div></div>
+      </section>
+    </aside>
+
+    <main class="work">
+      <div id="screen" class="screen">
+        <video id="gameVideo" autoplay muted playsinline aria-label="Game video"></video>
+        <div id="overlay" class="overlay"><div><strong class="label">Pick a game</strong><p></p><div id="overlayAction" class="overlay-action"></div></div></div>
       </div>
 
       <div class="toolbar">
-        <span class="now-playing" id="nowPlaying">Nothing playing</span>
-        <span class="stats"><span class="dot" id="liveDot"></span><span id="stats">offline</span></span>
-        <span class="spacer"></span>
-        <button id="pauseBtn" disabled>Pause</button>
-        <button id="resetBtn" disabled>Reset</button>
-        <button id="fullscreenBtn" disabled>Fullscreen</button>
-        <button id="stopBtn" class="danger" disabled>Stop</button>
+        <h2 id="nowPlaying" class="now label">Nothing checked out</h2>
+        <span id="health" class="health num" data-level="off" aria-live="polite"><i aria-hidden="true"></i><span id="healthText">Offline</span></span>
+        <span class="grow"></span>
+        <div class="controls">
+          <button id="pauseBtn" class="btn" type="button" disabled>Pause</button>
+          <button id="resetBtn" class="btn" type="button" disabled>Reset</button>
+          <button id="fullscreenBtn" class="btn" type="button" disabled>Fullscreen</button>
+          <button id="stopBtn" class="btn danger" type="button" disabled>Stop</button>
+        </div>
       </div>
 
-      <h2 style="margin-top:20px">Save states</h2>
-      <div class="slots" id="slots"></div>
+      <div class="lower">
+        <section aria-labelledby="slotsHead">
+          <div class="section-head"><h2 id="slotsHead" class="label">Save slots</h2><span id="slotsNote" class="count">Play a game to use slots</span></div>
+          <div id="slots" class="slots"></div>
+        </section>
+        <section aria-labelledby="factsHead">
+          <div class="section-head"><h2 id="factsHead" class="label">Session</h2></div>
+          <table class="facts">
+            <tbody>
+              <tr><th scope="row">Container</th><td id="fContainer">—</td></tr>
+              <tr><th scope="row">Signal port</th><td id="fPort">—</td></tr>
+              <tr><th scope="row">Player</th><td id="fPlayer">—</td></tr>
+              <tr><th scope="row">Frame rate</th><td id="fFps">—</td></tr>
+              <tr><th scope="row">Round trip</th><td id="fRtt">—</td></tr>
+              <tr><th scope="row">Checked out</th><td id="fStarted">—</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
 
-      <div class="keys">
+      <section aria-label="Controls" class="keys">
         <span><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> D-pad</span>
-        <span><kbd>X</kbd> A</span>
-        <span><kbd>Z</kbd> B</span>
-        <span><kbd>A</kbd> X</span>
-        <span><kbd>S</kbd> Y</span>
-        <span><kbd>Q</kbd> L</span>
-        <span><kbd>W</kbd> R</span>
-        <span><kbd>Enter</kbd> Start</span>
-        <span><kbd>Shift</kbd> Select</span>
-      </div>
-    </section>
-  </main>
+        <span><kbd>X</kbd> A</span><span><kbd>Z</kbd> B</span>
+        <span><kbd>A</kbd> X</span><span><kbd>S</kbd> Y</span>
+        <span><kbd>Q</kbd> L</span><span><kbd>W</kbd> R</span>
+        <span><kbd>Enter</kbd> Start</span><span><kbd>Shift</kbd> Select</span>
+      </section>
+    </main>
+  </div>
 
-  <div id="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
     const $ = (id) => document.getElementById(id);
     const userIdInput = $("userId");
     const gameVideo = $("gameVideo");
-    const SLOT_COUNT = 4;
     const NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
     const GAME_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Shift", "z", "x", "a", "s", "q", "w"]);
+    const SLOT_COUNT = 4;
 
-    let session = null; // { id, game }
+    let session = null; // { id, game, containerId, port, startedAt }
     let pc = null, ws = null, inputChannel = null, statsTimer = null, paused = false;
+    let adminKey = sessionStorage.getItem("ce-admin-key") || "";
+    let library = { roms: [], pending: [] };
+    let lastSlots = null;
 
     userIdInput.value = localStorage.getItem("container-emulator-userId") || "";
-    userIdInput.addEventListener("input", () => { $("userError").textContent = ""; });
-    userIdInput.addEventListener("change", () => {
-      localStorage.setItem("container-emulator-userId", userIdInput.value.trim());
-    });
+    userIdInput.addEventListener("input", () => { $("userError").textContent = ""; renderIdle(); });
+    userIdInput.addEventListener("change", () => localStorage.setItem("container-emulator-userId", userIdInput.value.trim()));
 
     let toastTimer = null;
     function toast(message, isError = false) {
@@ -140,126 +289,382 @@
       el.classList.toggle("error", isError);
       el.classList.add("show");
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+      toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
     }
 
-    function setOverlay(text) {
-      $("overlay").textContent = text || "";
-      $("overlay").style.display = text ? "grid" : "none";
+    function playerName() {
+      const name = userIdInput.value.trim();
+      if (!NAME_PATTERN.test(name)) {
+        $("userError").textContent = "Enter a player name: 1–32 letters, digits, - or _.";
+        userIdInput.focus();
+        return null;
+      }
+      localStorage.setItem("container-emulator-userId", name);
+      return name;
+    }
+
+    // Destructive actions take two clicks on the same button: the first arms
+    // it ("Confirm reset?"), the second acts. It disarms itself after 4s.
+    function armThenRun(btn, armedLabel, action) {
+      if (btn.classList.contains("armed")) {
+        clearTimeout(btn._disarm);
+        btn.classList.remove("armed");
+        btn.textContent = btn.dataset.label;
+        action();
+        return;
+      }
+      btn.dataset.label = btn.textContent;
+      btn.classList.add("armed");
+      btn.textContent = armedLabel;
+      btn._disarm = setTimeout(() => {
+        btn.classList.remove("armed");
+        btn.textContent = btn.dataset.label;
+      }, 4000);
+    }
+
+    const stem = (rom) => rom.replace(/\.[^.]+$/, "");
+    const consoleOf = (rom) => rom.split(".").pop().toUpperCase();
+    function stampTime(iso) {
+      const d = new Date(iso);
+      const day = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      return `${day} · ${time}`;
+    }
+    function ago(iso) {
+      const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+      if (s < 60) return "just now";
+      if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+      if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+      return new Date(iso).toLocaleDateString();
+    }
+
+    // ---------- admin ----------
+    function renderAdmin() {
+      const on = !!adminKey;
+      $("adminLocked").hidden = on;
+      $("adminUnlocked").hidden = !on;
+      $("adminToggle").textContent = on ? "Admin · on" : "Admin";
+      renderLibrary();
+    }
+    $("adminToggle").addEventListener("click", () => {
+      const box = $("adminBox");
+      box.hidden = !box.hidden;
+      $("adminToggle").setAttribute("aria-expanded", String(!box.hidden));
+      if (!box.hidden && !adminKey) $("adminKey").focus();
+    });
+    async function unlock() {
+      const key = $("adminKey").value;
+      if (!key) { $("adminError").textContent = "Enter the admin key."; return; }
+      let res;
+      try {
+        res = await fetch("/admin/check", { headers: { "x-admin-token": key } });
+      } catch {
+        $("adminError").textContent = "Couldn't reach the server. Check your connection and try again.";
+        return;
+      }
+      if (res.status === 204) {
+        adminKey = key;
+        sessionStorage.setItem("ce-admin-key", key);
+        $("adminKey").value = "";
+        $("adminError").textContent = "";
+        renderAdmin();
+        toast("Admin mode on.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        $("adminError").textContent = data.error || "That key didn't work.";
+      }
+    }
+    $("adminUnlock").addEventListener("click", unlock);
+    $("adminKey").addEventListener("keydown", (e) => { if (e.key === "Enter") unlock(); });
+    $("adminLock").addEventListener("click", () => {
+      adminKey = "";
+      sessionStorage.removeItem("ce-admin-key");
+      renderAdmin();
+    });
+
+    async function adminRequest(method, url) {
+      const res = await fetch(url, { method, headers: { "x-admin-token": adminKey } });
+      if (res.status === 401) {
+        adminKey = "";
+        sessionStorage.removeItem("ce-admin-key");
+        renderAdmin();
+        throw new Error("Admin key no longer valid. Unlock again.");
+      }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "That didn't work.");
+    }
+
+    // ---------- library ----------
+    async function loadLibrary() {
+      try {
+        const res = await fetch("/roms");
+        library = await res.json();
+      } catch {
+        toast("Couldn't load the catalog. Is the server running?", true);
+      }
+      renderLibrary();
+    }
+
+    // Call numbers are assigned per console in title order: GBA·001, NES·002…
+    function callNumbers(roms) {
+      const counters = {};
+      const out = {};
+      for (const rom of [...roms].sort((a, b) => a.localeCompare(b))) {
+        const c = consoleOf(rom);
+        counters[c] = (counters[c] || 0) + 1;
+        out[rom] = `${c}·${String(counters[c]).padStart(3, "0")}`;
+      }
+      return out;
+    }
+
+    function button(text, cls, onClick, disabled = false) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn small " + cls;
+      b.textContent = text;
+      b.disabled = disabled;
+      b.addEventListener("click", onClick);
+      return b;
+    }
+
+    function renderLibrary() {
+      const { roms = [], pending = [] } = library;
+      const calls = callNumbers(roms);
+      const list = $("catalog");
+      list.innerHTML = "";
+      $("catalogCount").textContent = roms.length ? `${roms.length} ${roms.length === 1 ? "game" : "games"}` : "";
+      if (!roms.length) {
+        list.innerHTML = '<li class="empty-note">The catalog is empty. Upload a ROM below; it appears here once approved.</li>';
+      }
+      for (const rom of [...roms].sort((a, b) => calls[a].localeCompare(calls[b]))) {
+        const li = document.createElement("li");
+        li.className = "entry" + (session && session.game === rom ? " active" : "");
+        const call = document.createElement("span");
+        call.className = "callno";
+        call.textContent = calls[rom];
+        const text = document.createElement("div");
+        text.style.minWidth = "0";
+        const title = document.createElement("div");
+        title.className = "entry-title";
+        title.textContent = stem(rom);
+        title.title = rom;
+        const meta = document.createElement("div");
+        meta.className = "entry-meta";
+        meta.textContent = consoleOf(rom) === "GBA" ? "Game Boy Advance" : "NES";
+        text.append(title, meta);
+        const actions = document.createElement("div");
+        actions.className = "entry-actions";
+        const playing = session && session.game === rom;
+        actions.append(button(playing ? "Playing" : "Play", "primary", () => startSession(rom), !!session));
+        if (adminKey) {
+          actions.append(button("Delete", "danger", (e) => armThenRun(e.currentTarget, "Confirm delete?", () => deleteGame(rom)), playing));
+        }
+        li.append(call, text, actions);
+        list.appendChild(li);
+      }
+
+      const queue = $("queue");
+      queue.innerHTML = "";
+      $("queueCount").textContent = pending.length ? String(pending.length) : "";
+      if (!pending.length) {
+        queue.innerHTML = '<li><span class="entry-meta">No uploads waiting.</span></li>';
+      }
+      for (const item of pending) {
+        const li = document.createElement("li");
+        const text = document.createElement("div");
+        text.style.minWidth = "0";
+        const title = document.createElement("div");
+        title.className = "entry-title";
+        title.textContent = item.name;
+        const meta = document.createElement("div");
+        meta.className = "entry-meta";
+        meta.textContent = [item.uploader && `from ${item.uploader}`, item.uploadedAt && ago(item.uploadedAt)].filter(Boolean).join(" · ");
+        text.append(title, meta);
+        li.append(text);
+        if (adminKey) {
+          const actions = document.createElement("div");
+          actions.className = "entry-actions";
+          actions.append(
+            button("Approve", "primary", () => approve(item.name)),
+            button("Reject", "danger", (e) => armThenRun(e.currentTarget, "Confirm reject?", () => reject(item.name)))
+          );
+          li.append(actions);
+        }
+        queue.appendChild(li);
+      }
+      renderIdle();
+    }
+
+    // With nothing playing, the screen offers the next step itself instead
+    // of pointing at the rail: ask for a name, or offer the first game.
+    function renderIdle() {
+      if (session) return;
+      const action = $("overlayAction");
+      action.innerHTML = "";
+      const roms = library.roms || [];
+      if (!NAME_PATTERN.test(userIdInput.value.trim())) {
+        setOverlay("Who's playing?", "Enter a player name first. Your saves and save slots are kept under it.");
+        action.append(button("Enter player name", "primary", () => userIdInput.focus()));
+        return;
+      }
+      if (!roms.length) {
+        setOverlay("The catalog is empty", "Upload a .gba or .nes ROM. It can be played once the admin approves it.");
+        return;
+      }
+      const calls = callNumbers(roms);
+      const first = [...roms].sort((a, b) => calls[a].localeCompare(calls[b]))[0];
+      setOverlay("Pick a game", "Each game starts in its own container on the server and streams here.");
+      const call = document.createElement("span");
+      call.className = "callno";
+      call.textContent = calls[first];
+      const title = document.createElement("span");
+      title.className = "entry-title";
+      title.textContent = stem(first);
+      action.append(call, title, button("Play", "primary", () => startSession(first)));
+    }
+
+    async function approve(name) {
+      try { await adminRequest("POST", `/admin/pending/${encodeURIComponent(name)}/approve`); toast(`${name} added to the catalog.`); }
+      catch (err) { toast(err.message, true); }
+      loadLibrary();
+    }
+    async function reject(name) {
+      try { await adminRequest("DELETE", `/admin/pending/${encodeURIComponent(name)}`); toast(`${name} rejected.`); }
+      catch (err) { toast(err.message, true); }
+      loadLibrary();
+    }
+    async function deleteGame(rom) {
+      try { await adminRequest("DELETE", `/admin/roms/${encodeURIComponent(rom)}`); toast(`${rom} deleted.`); }
+      catch (err) { toast(err.message, true); }
+      loadLibrary();
+    }
+
+    // ---------- upload ----------
+    $("uploadBtn").addEventListener("click", () => {
+      if (playerName()) $("romFile").click();
+    });
+    $("romFile").addEventListener("change", () => {
+      const file = $("romFile").files[0];
+      $("romFile").value = "";
+      if (!file) return;
+      if (!/\.(gba|nes)$/i.test(file.name)) { toast("Only .gba and .nes files can be uploaded.", true); return; }
+      if (file.size > 48 * 1024 * 1024) { toast("That file is over the 48 MB limit.", true); return; }
+      const player = playerName();
+      if (!player) return;
+
+      const bar = $("progress");
+      const fill = bar.firstElementChild;
+      const btn = $("uploadBtn");
+      bar.style.display = "block";
+      fill.style.width = "0";
+      btn.disabled = true;
+      btn.textContent = "Uploading…";
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/roms/upload?name=${encodeURIComponent(file.name)}&player=${encodeURIComponent(player)}`);
+      xhr.setRequestHeader("content-type", "application/octet-stream");
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) fill.style.width = `${(100 * e.loaded) / e.total}%`; };
+      const done = () => { btn.disabled = false; btn.textContent = "Upload ROM"; bar.style.display = "none"; };
+      xhr.onload = () => {
+        done();
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status === 201) toast(`${data.name} uploaded. It joins the catalog once the admin approves it.`);
+        else if (xhr.status === 413) toast("That file is over the 48 MB limit.", true);
+        else toast(data.error || "The upload failed.", true);
+        loadLibrary();
+      };
+      xhr.onerror = () => { done(); toast("The upload failed. Check your connection and try again.", true); };
+      xhr.send(file);
+    });
+
+    // ---------- sessions ----------
+    function setOverlay(title, text) {
+      const o = $("overlay");
+      $("overlayAction").innerHTML = "";
+      if (!title) { o.style.display = "none"; return; }
+      o.style.display = "grid";
+      o.querySelector("strong").textContent = title;
+      o.querySelector("p").textContent = text || "";
     }
 
     function setControls(enabled) {
       for (const id of ["pauseBtn", "resetBtn", "fullscreenBtn", "stopBtn"]) $(id).disabled = !enabled;
-      renderSlots(null);
     }
 
-    // ---------- library ----------
-    async function loadRoms() {
-      const res = await fetch("/roms");
-      const { roms } = await res.json();
-      const list = $("roms");
-      list.innerHTML = "";
-      if (!roms.length) {
-        list.innerHTML = '<div class="empty">No ROMs yet. Add files to the server\'s roms/ folder.</div>';
-        return;
-      }
-      for (const rom of roms) {
-        const row = document.createElement("div");
-        row.className = "rom";
-        row.dataset.rom = rom;
-        const name = document.createElement("span");
-        name.className = "rom-name";
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = rom.split(".").pop().toUpperCase();
-        name.append(tag, document.createTextNode(rom.replace(/\.[^.]+$/, "")));
-        name.title = rom;
-        const btn = document.createElement("button");
-        btn.className = "primary";
-        btn.textContent = "Play";
-        btn.addEventListener("click", () => startSession(rom));
-        row.append(name, btn);
-        list.appendChild(row);
-      }
+    function setFacts(s) {
+      $("fContainer").textContent = s ? s.containerId.slice(0, 12) : "—";
+      $("fPort").textContent = s ? String(s.port) : "—";
+      $("fPlayer").textContent = s ? s.player : "—";
+      $("fStarted").textContent = s ? stampTime(s.startedAt) : "—";
+      if (!s) { $("fFps").textContent = "—"; $("fRtt").textContent = "—"; }
     }
 
-    function markActiveRom() {
-      for (const row of document.querySelectorAll(".rom")) {
-        row.classList.toggle("active", !!session && row.dataset.rom === session.game);
-        row.querySelector("button").disabled = !!session;
-      }
-    }
-
-    // ---------- sessions ----------
     async function startSession(game) {
-      const userId = userIdInput.value.trim();
-      if (!NAME_PATTERN.test(userId)) {
-        $("userError").textContent = "Enter a name: 1-32 letters, digits, - or _";
-        userIdInput.focus();
-        return;
-      }
-      localStorage.setItem("container-emulator-userId", userId);
-      setOverlay("Starting " + game + "…");
-      $("nowPlaying").textContent = game.replace(/\.[^.]+$/, "");
-      $("liveDot").className = "dot wait";
-      $("stats").textContent = "starting";
-      document.querySelectorAll(".rom button").forEach((b) => (b.disabled = true));
+      const player = playerName();
+      if (!player) return;
+      session = { id: null, game, starting: true };
+      renderLibrary();
+      $("nowPlaying").textContent = stem(game);
+      setHealth("off", "Starting");
+      setOverlay("Starting", "Booting a fresh container for this game. This takes a few seconds.");
 
       const res = await fetch("/sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userId, game }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setOverlay("Pick a game from the library to start playing.");
-        $("nowPlaying").textContent = "Nothing playing";
-        $("liveDot").className = "dot";
-        $("stats").textContent = "offline";
-        document.querySelectorAll(".rom button").forEach((b) => (b.disabled = false));
-        toast(data.error || "Could not start the game.", true);
+        body: JSON.stringify({ userId: player, game }),
+      }).catch(() => null);
+      const data = res ? await res.json().catch(() => ({})) : {};
+      if (!res || !res.ok) {
+        session = null;
+        $("nowPlaying").textContent = "Nothing checked out";
+        setHealth("off", "Offline");
+        renderLibrary();
+        toast(data.error || "Couldn't start the game. Try again.", true);
         return;
       }
-      session = { id: data.sessionId, game };
+      session = { id: data.sessionId, game, containerId: data.containerId, port: data.port, player, startedAt: new Date().toISOString() };
       paused = false;
       $("pauseBtn").textContent = "Pause";
-      markActiveRom();
+      renderLibrary();
       setControls(true);
-      setOverlay("Connecting to stream…");
+      setFacts(session);
+      setOverlay("Connecting", "Container is up. Opening the video stream…");
       connectStream(session.id);
+      lastSlots = null;
       refreshSlots();
+      if (window.matchMedia("(max-width: 900px)").matches) $("screen").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     async function stopSession() {
-      if (!session) return;
+      if (!session || !session.id) return;
       const id = session.id;
       disconnectStream();
       session = null;
-      markActiveRom();
+      renderLibrary();
       setControls(false);
-      setOverlay("Pick a game from the library to start playing.");
-      $("nowPlaying").textContent = "Nothing playing";
+      setFacts(null);
+      renderSlots(null);
+      $("nowPlaying").textContent = "Nothing checked out";
       await fetch(`/sessions/${id}`, { method: "DELETE" });
-      toast("Session stopped. In-game saves were kept.");
+      toast("Session stopped and its container removed. In-game saves were kept.");
     }
 
     // Close the container if the tab goes away, so sessions don't pile up.
     window.addEventListener("pagehide", () => {
-      if (session) fetch(`/sessions/${session.id}`, { method: "DELETE", keepalive: true });
+      if (session && session.id) fetch(`/sessions/${session.id}`, { method: "DELETE", keepalive: true });
     });
 
     // ---------- stream ----------
     function connectStream(sessionId) {
       pc = new RTCPeerConnection({ iceServers: [] });
       ws = new WebSocket(`ws://${location.host}/stream/${sessionId}`);
-
       pc.ontrack = (e) => {
-        // Render frames as soon as they decode — latency beats smoothness here.
+        // Render frames as soon as they decode: latency beats smoothness here.
         if ("jitterBufferTarget" in e.receiver) e.receiver.jitterBufferTarget = 0;
         if ("playoutDelayHint" in e.receiver) e.receiver.playoutDelayHint = 0;
         gameVideo.srcObject = e.streams[0] || new MediaStream([e.track]);
       };
-      gameVideo.onplaying = () => setOverlay("");
+      gameVideo.onplaying = () => setOverlay(null);
       pc.ondatachannel = (e) => { inputChannel = e.channel; };
       pc.onicecandidate = (e) => {
         if (e.candidate && ws.readyState === WebSocket.OPEN) {
@@ -267,11 +672,8 @@
         }
       };
       pc.onconnectionstatechange = () => {
-        if (pc && pc.connectionState === "failed") {
-          setOverlay("Stream connection failed. Stop and start the game again.");
-        }
+        if (pc && pc.connectionState === "failed") setOverlay("Stream lost", "The video connection dropped. Stop the session and play again.");
       };
-
       // Server ICE candidates can arrive before its offer is applied; hold them.
       let remoteReady = false;
       const pendingIce = [];
@@ -293,7 +695,8 @@
           }
         }).catch((err) => toast("Stream error: " + err.message, true));
       };
-      ws.onerror = () => setOverlay("Could not reach the game stream.");
+      ws.onerror = () => setOverlay("Stream unreachable", "Couldn't reach the game stream. Stop the session and try again.");
+      lastFrames = null;
       statsTimer = setInterval(updateStats, 2000);
     }
 
@@ -303,8 +706,29 @@
       if (pc) pc.close();
       ws = pc = inputChannel = null;
       gameVideo.srcObject = null;
-      $("liveDot").className = "dot";
-      $("stats").textContent = "offline";
+      setHealth("off", "Offline");
+    }
+
+    // One fixed health ramp, used everywhere the stream's quality shows: each
+    // reading gets its own level, and the toolbar shows the worse of the two.
+    const LEVELS = ["good", "fair", "poor"];
+    const fpsLevel = (fps) => (fps >= 55 ? "good" : fps >= 40 ? "fair" : "poor");
+    const rttLevel = (ms) => (ms == null ? "good" : ms <= 120 ? "good" : ms <= 200 ? "fair" : "poor");
+    const worse = (a, b) => (LEVELS.indexOf(a) >= LEVELS.indexOf(b) ? a : b);
+    function setHealth(level, text) {
+      $("health").dataset.level = level;
+      $("healthText").textContent = text;
+    }
+    function setReading(cell, text, level) {
+      cell.textContent = "";
+      if (level) {
+        const dot = document.createElement("i");
+        dot.className = "lvl";
+        dot.dataset.level = level;
+        dot.setAttribute("aria-hidden", "true");
+        cell.append(dot);
+      }
+      cell.append(text);
     }
 
     let lastFrames = null;
@@ -316,10 +740,23 @@
         if (r.type === "candidate-pair" && r.nominated && r.currentRoundTripTime != null) rtt = r.currentRoundTripTime;
       });
       if (frames == null) return;
-      const fps = lastFrames == null ? 0 : Math.round((frames - lastFrames) / 2);
+      const fps = lastFrames == null ? null : Math.round((frames - lastFrames) / 2);
       lastFrames = frames;
-      $("liveDot").className = "dot live";
-      $("stats").textContent = `${fps} fps` + (rtt != null ? ` · ${Math.round(rtt * 1000)} ms` : "");
+      if (fps == null) return;
+      const rttMs = rtt == null ? null : Math.round(rtt * 1000);
+      // Paused is a state, not a quality level: the frame rate is meaningless
+      // while the game is held, so it gets the neutral mark.
+      const fLevel = paused ? null : fpsLevel(fps);
+      const rLevel = rttMs == null ? null : rttLevel(rttMs);
+      setReading($("fFps"), paused ? "Paused" : `${fps} fps`, fLevel);
+      setReading($("fRtt"), rttMs != null ? `${rttMs} ms` : "—", rLevel);
+      if (paused) {
+        setHealth("off", "Paused" + (rttMs != null ? ` · ${rttMs} ms` : ""));
+        return;
+      }
+      const level = worse(fLevel, rLevel || "good");
+      const label = { good: "Good", fair: "Fair", poor: "Poor" }[level];
+      setHealth(level, `${label} · ${fps} fps` + (rttMs != null ? ` · ${rttMs} ms` : ""));
     }
 
     // ---------- input & commands ----------
@@ -328,7 +765,6 @@
       inputChannel.send(JSON.stringify(obj));
       return true;
     }
-
     function onKey(event, type) {
       if (!session || event.target.tagName === "INPUT" || !GAME_KEYS.has(event.key)) return;
       event.preventDefault();
@@ -345,14 +781,16 @@
       }
       return true;
     }
-
     $("pauseBtn").addEventListener("click", () => {
       if (!command("pause")) return;
       paused = !paused;
       $("pauseBtn").textContent = paused ? "Resume" : "Pause";
+      if (paused) setHealth("off", "Paused");
     });
-    $("resetBtn").addEventListener("click", () => {
-      if (confirm("Reset the game? Progress since your last save will be lost.")) command("reset");
+    $("resetBtn").addEventListener("click", (e) => {
+      armThenRun(e.currentTarget, "Confirm reset?", () => {
+        if (command("reset")) toast("Game reset. Progress since your last save is gone.");
+      });
     });
     $("fullscreenBtn").addEventListener("click", () => {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -360,52 +798,75 @@
     });
     $("stopBtn").addEventListener("click", stopSession);
 
-    // ---------- save states ----------
-    function timeAgo(iso) {
-      const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-      if (s < 60) return "just now";
-      if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-      if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-      return new Date(iso).toLocaleDateString();
-    }
-
-    function renderSlots(slots) {
+    // ---------- save slots ----------
+    function renderSlots(slots, freshSlot = null) {
+      const note = $("slotsNote");
       const wrap = $("slots");
       wrap.innerHTML = "";
+      note.textContent = "";
+      if (!session || !session.id) {
+        // Before a checkout there's nothing to act on: one ledger line, not
+        // four cards of disabled buttons.
+        note.textContent = `${SLOT_COUNT} slots`;
+        const line = document.createElement("p");
+        line.className = "ledger-line";
+        line.textContent = "No game checked out. Save slots open once you play, and stay with your player name.";
+        wrap.append(line);
+        wrap.style.display = "block";
+        return;
+      }
+      wrap.style.display = "";
+      const who = document.createElement("span");
+      who.className = "token";
+      who.textContent = session.player;
+      note.append("Player ", who, ` · ${SLOT_COUNT} slots`);
       for (let i = 0; i < SLOT_COUNT; i++) {
         const info = slots ? slots[i] : null;
-        const card = document.createElement("div");
-        card.className = "slot";
-        const title = document.createElement("div");
-        title.className = "slot-title";
-        title.textContent = `Slot ${i + 1}`;
-        const time = document.createElement("div");
-        time.className = "slot-time";
-        time.textContent = !session ? "—" : info && info.savedAt ? "Saved " + timeAgo(info.savedAt) : "Empty";
+        const saved = !!(info && info.savedAt);
+        const card = document.createElement("article");
+        card.className = "slot" + (saved ? "" : " empty");
+        const head = document.createElement("div");
+        head.className = "slot-head";
+        const name = document.createElement("span");
+        name.className = "label";
+        name.textContent = `Slot ${i + 1}`;
+        const when = document.createElement("span");
+        when.className = "when";
+        // The stamp already carries the date; the header only adds recency.
+        const fresh = saved && Date.now() - new Date(info.savedAt).getTime() < 86400000;
+        when.textContent = fresh ? ago(info.savedAt) : "";
+        head.append(name, when);
+        card.append(head);
+        if (saved) {
+          const stamp = document.createElement("span");
+          stamp.className = "stamp num" + (freshSlot === i ? " fresh" : "");
+          stamp.textContent = `Saved ${stampTime(info.savedAt)}`;
+          card.append(stamp);
+        } else {
+          const empty = document.createElement("span");
+          empty.className = "slot-empty-text";
+          empty.textContent = "Empty";
+          card.append(empty);
+        }
         const actions = document.createElement("div");
         actions.className = "slot-actions";
-        const save = document.createElement("button");
-        save.textContent = "Save";
-        save.disabled = !session;
-        save.addEventListener("click", () => saveState(i, info && info.savedAt));
-        const load = document.createElement("button");
-        load.textContent = "Load";
-        load.disabled = !session || !(info && info.savedAt);
-        load.addEventListener("click", () => loadState(i));
-        actions.append(save, load);
-        card.append(title, time, actions);
+        actions.append(
+          button("Save", "", () => saveState(i, info && info.savedAt), !session || !session.id),
+          button("Load", "", () => loadState(i), !session || !session.id || !saved)
+        );
+        card.append(actions);
         wrap.appendChild(card);
       }
     }
 
     async function fetchSlots() {
-      if (!session) return null;
-      const res = await fetch(`/sessions/${session.id}/states`);
-      return res.ok ? (await res.json()).slots : null;
+      if (!session || !session.id) return null;
+      const res = await fetch(`/sessions/${session.id}/states`).catch(() => null);
+      return res && res.ok ? (await res.json()).slots : null;
     }
-
     async function refreshSlots() {
-      renderSlots(await fetchSlots());
+      lastSlots = await fetchSlots();
+      renderSlots(lastSlots);
     }
 
     async function saveState(slot, previous) {
@@ -416,22 +877,24 @@
         await new Promise((r) => setTimeout(r, 400));
         const slots = await fetchSlots();
         if (slots && slots[slot].savedAt && slots[slot].savedAt !== previous) {
-          renderSlots(slots);
-          toast(`Saved to slot ${slot + 1}`);
+          lastSlots = slots;
+          renderSlots(slots, slot);
+          toast(`Saved to slot ${slot + 1}.`);
           return;
         }
       }
-      toast(`Couldn't confirm the save to slot ${slot + 1}.`, true);
+      toast(`Couldn't confirm the save to slot ${slot + 1}. Try again.`, true);
       refreshSlots();
     }
-
     function loadState(slot) {
-      if (command("load", slot)) toast(`Loaded slot ${slot + 1}`);
+      if (command("load", slot)) toast(`Loaded slot ${slot + 1}.`);
     }
 
-    setInterval(() => { if (session) refreshSlots(); }, 30000);
+    setInterval(() => { if (session && session.id) refreshSlots(); }, 30000);
+    setInterval(loadLibrary, 20000);
     renderSlots(null);
-    loadRoms();
+    renderAdmin();
+    loadLibrary();
   </script>
 </body>
 </html>

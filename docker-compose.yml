@@ -1,6 +1,9 @@
 services:
   session-manager:
     build: ./session-manager
+    # Come back by itself after a reboot or Docker restart; an explicit
+    # `docker compose stop` still keeps it stopped.
+    restart: unless-stopped
     ports:
       - "4000:4000"
     # Emulator containers are host-networked; this is how session-manager
@@ -11,9 +14,9 @@ services:
       # Lets session-manager read docker.sock to spawn SIBLING emulator
       # containers on the host daemon (docker-outside-of-docker).
       - /var/run/docker.sock:/var/run/docker.sock
-      # Mounted here too so session-manager itself can list ROMs / see
-      # save files for its own API responses.
-      - ./roms:/data/roms:ro
+      # Mounted here too so session-manager can list ROMs and save files,
+      # and write uploads (roms/.pending) and admin approvals/deletions.
+      - ./roms:/data/roms
       - ./saves:/data/saves
     environment:
       - EMULATOR_IMAGE=container-emulator/emulator:latest
@@ -27,6 +30,9 @@ services:
       # Optional: see the LOKI_URL comment in dockerManager.js. Leave unset
       # to rely on promtail instead (default; Linux hosts only — README).
       - LOKI_URL=${LOKI_URL:-}
+      # Unlocks the admin routes (approve/reject uploads, delete games).
+      # Set in .env only; with it unset, admin actions are refused.
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
 
   # Build-only: produces container-emulator/emulator:latest, which
   # session-manager spawns per session. Not meant to run standalone.
