@@ -106,6 +106,9 @@ Compose.
 - **`.github/workflows/ci.yml`** — on every push/PR: install deps, syntax-check
   `session-manager`, then (on `main` only) build and push both images to
   GHCR, tagged with the git SHA and `latest`.
+- **Deploys are off by default**: both CD workflows skip unless the
+  repository variable `K8S_DEPLOY_ENABLED` is `true` (Settings → Secrets and
+  variables → Actions → Variables), since they need a Kubernetes cluster.
 - **`.github/workflows/cd-staging.yml`** — on a successful CI run on `main`:
   applies `deploy/k8s/overlays/staging` (idempotent) and rolls the new image
   out, then runs a smoke test against `/health`. Needs a GitHub Environment

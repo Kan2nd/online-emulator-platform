@@ -11,8 +11,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_SESSION_MANAGER: ${{ github.repository }}/session-manager
-  IMAGE_EMULATOR: ${{ github.repository }}/emulator
 
 jobs:
   test:
@@ -47,14 +45,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Image names must be lowercase, but github.repository keeps the
+      # owner's casing (Kan2nd/...), which Docker rejects.
+      - name: Lowercase image prefix
+        run: echo "IMAGE_PREFIX=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Build and push session-manager
         uses: docker/build-push-action@v6
         with:
           context: ./session-manager
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_SESSION_MANAGER }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_SESSION_MANAGER }}:latest
+            ${{ env.IMAGE_PREFIX }}/session-manager:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/session-manager:latest
 
       - name: Build and push emulator image
         uses: docker/build-push-action@v6
@@ -62,5 +65,5 @@ jobs:
           context: ./emulator-image
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_EMULATOR }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_EMULATOR }}:latest
+            ${{ env.IMAGE_PREFIX }}/emulator:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/emulator:latest
