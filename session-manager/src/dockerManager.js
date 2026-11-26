@@ -1,6 +1,7 @@
 "use strict";
 
 const Docker = require("dockerode");
+const { randomBytes } = require("crypto");
 
 const docker = new Docker({ socketPath: "/var/run/docker.sock" });
 
@@ -51,6 +52,8 @@ async function startSession({ userId, game, signalToken }) {
   }
 
   const container = await docker.createContainer({
+    // Readable in `docker ps`, cAdvisor and Loki instead of a random name.
+    name: `emu-${userId}-${randomBytes(3).toString("hex")}`,
     Image: EMULATOR_IMAGE,
     // SIGNAL_TOKEN: with host networking the signaling port is open on every
     // host interface, so the emulator only accepts connections on this
