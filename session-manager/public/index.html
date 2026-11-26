@@ -60,7 +60,7 @@
   .field::placeholder { color: var(--ink-3); }
 
   /* Shell */
-  .topbar { display: flex; align-items: center; gap: 20px; padding: 12px 24px; border-bottom: 1px solid var(--rule); background: var(--drawer); flex-wrap: wrap; }
+  .topbar { display: flex; align-items: center; gap: 20px; padding: 8px 24px; border-bottom: 1px solid var(--rule); background: var(--drawer); flex-wrap: wrap; }
   .wordmark { font-size: 22px; line-height: 1; margin: 0; }
   .wordmark span { color: var(--stamp-text); }
   .topbar .grow { flex: 1; }
@@ -68,13 +68,13 @@
   .who label { color: var(--ink-2); font-size: 13px; }
   .hint-error { color: var(--poor); font-size: 13px; }
 
-  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: calc(100vh - 59px); }
+  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: calc(100vh - 51px); }
   .rail { border-right: 1px solid var(--rule); background: var(--drawer); padding: 20px 18px 28px; display: flex; flex-direction: column; gap: 28px; }
-  .work { padding: 22px 28px 40px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .work { padding: 14px 24px 40px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     .rail { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .work { padding: 18px 16px 32px; }
+    .work { padding: 12px 16px 32px; }
   }
 
   .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
@@ -105,10 +105,17 @@
   .admin-box .field { width: 100%; }
   .admin-on { color: var(--stamp-text); font-size: 13px; }
 
-  /* Screen */
-  .screen { position: relative; width: 100%; max-height: calc(100vh - 260px); aspect-ratio: 3 / 2; margin: 0 auto; background: #000; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; }
-  .screen video { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
-  .screen:fullscreen { border: 0; border-radius: 0; max-height: none; }
+  /* Screen. The stage is the largest 3:2 screen that fits the window with its
+     toolbar: width is limited by the column or by the height left under the top
+     bar (128px = top bar, padding, gap and toolbar), whichever is smaller. */
+  .stage { width: min(100%, max(360px, calc((100vh - 128px) * 1.5))); width: min(100%, max(360px, calc((100dvh - 128px) * 1.5))); margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  .screen { position: relative; width: 100%; aspect-ratio: 3 / 2; background: #000; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+  /* Out of flow so the video's own size can never stretch or crop the box. */
+  .screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
+  .screen:fullscreen { aspect-ratio: auto; border: 0; border-radius: 0; }
+  .exit-fs { display: none; position: absolute; top: 12px; right: 12px; z-index: 1; opacity: .45; }
+  .exit-fs:hover, .exit-fs:focus-visible { opacity: 1; }
+  .screen:fullscreen .exit-fs { display: inline-flex; }
   .overlay { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(6, 8, 12, .82); }
   .overlay p { margin: 0; max-width: 42ch; color: var(--ink-2); }
   .overlay strong { display: block; color: var(--ink); font-size: 26px; margin-bottom: 6px; }
@@ -117,6 +124,12 @@
   .overlay-action:has(> .btn:only-child) { border: 0; background: none; padding: 0; }
   .overlay-action .callno { font-size: 18px; }
   .overlay-action .entry-title { max-width: 26ch; color: var(--ink); text-align: left; }
+  @media (max-width: 640px) {
+    .overlay { padding: 10px; overflow: auto; font-size: 13px; }
+    .overlay strong { font-size: 19px; margin-bottom: 2px; }
+    .overlay-action { margin-top: 10px; gap: 8px; padding: 6px 8px; }
+    .overlay-action .callno { display: none; }
+  }
   .ledger-line { margin: 0; padding: 14px 16px; border: 1px dashed var(--rule-strong); border-radius: var(--radius); color: var(--ink-2); font-size: 14px; }
 
   .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -150,8 +163,10 @@
   @keyframes press { from { transform: rotate(-3deg) scale(1.55); opacity: 0; filter: blur(3px); } to { transform: rotate(-3deg) scale(1); opacity: .92; filter: blur(0); } }
   @media (prefers-reduced-motion: reduce) { .stamp.fresh { animation: none; } }
   .slot-empty-text { color: var(--ink-3); font-size: 13px; }
-  .slot-actions { display: flex; gap: 8px; margin-top: auto; }
-  .slot-actions .btn { flex: 1; }
+  .slot-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  .slot-actions .btn { flex: 1 1 auto; }
+  @media (max-width: 480px) { .slots { grid-template-columns: 1fr; } }
+  .slots-help { margin: 10px 0 0; max-width: 70ch; color: var(--ink-2); font-size: 13px; }
 
   .facts { width: 100%; border-collapse: collapse; font-size: 14px; }
   .facts th { text-align: left; font-weight: 400; color: var(--ink-2); padding: 7px 0; border-bottom: 1px solid var(--rule); width: 42%; }
@@ -215,9 +230,11 @@
     </aside>
 
     <main class="work">
+      <div class="stage">
       <div id="screen" class="screen">
         <video id="gameVideo" autoplay muted playsinline aria-label="Game video"></video>
         <div id="overlay" class="overlay"><div><strong class="label">Pick a game</strong><p></p><div id="overlayAction" class="overlay-action"></div></div></div>
+        <button id="exitFullscreenBtn" class="btn small exit-fs" type="button">Exit fullscreen</button>
       </div>
 
       <div class="toolbar">
@@ -231,11 +248,13 @@
           <button id="stopBtn" class="btn danger" type="button" disabled>Stop</button>
         </div>
       </div>
+      </div>
 
       <div class="lower">
         <section aria-labelledby="slotsHead">
           <div class="section-head"><h2 id="slotsHead" class="label">Save slots</h2><span id="slotsNote" class="count">Play a game to use slots</span></div>
           <div id="slots" class="slots"></div>
+          <p class="slots-help">Saving from the game's own menu is kept automatically under your player name. Slots are separate snapshots of the exact moment; deleting one leaves your in-game save alone.</p>
         </section>
         <section aria-labelledby="factsHead">
           <div class="section-head"><h2 id="factsHead" class="label">Session</h2></div>
@@ -817,6 +836,7 @@
       else $("screen").requestFullscreen();
     });
     $("stopBtn").addEventListener("click", stopSession);
+    $("exitFullscreenBtn").addEventListener("click", () => document.exitFullscreen());
 
     // ---------- save slots ----------
     function renderSlots(slots, freshSlot = null) {
@@ -874,6 +894,9 @@
           button("Save", "", () => saveState(i, info && info.savedAt), !session || !session.id),
           button("Load", "", () => loadState(i), !session || !session.id || !saved)
         );
+        if (saved) {
+          actions.append(button("Delete", "danger", (e) => armThenRun(e.currentTarget, "Confirm delete?", () => deleteState(i))));
+        }
         card.append(actions);
         wrap.appendChild(card);
       }
@@ -886,7 +909,16 @@
     }
     async function refreshSlots() {
       lastSlots = await fetchSlots();
+      // Redrawing would silently disarm a "Confirm delete?" mid-click.
+      if ($("slots").querySelector(".armed")) return;
       renderSlots(lastSlots);
+    }
+    async function deleteState(slot) {
+      if (!session || !session.id) return;
+      const res = await fetch(`/sessions/${session.id}/states/${slot}`, { method: "DELETE" }).catch(() => null);
+      if (res && res.ok) toast(`Slot ${slot + 1} deleted.`);
+      else toast((res && (await res.json().catch(() => ({}))).error) || "Couldn't delete that slot. Try again.", true);
+      refreshSlots();
     }
 
     async function saveState(slot, previous) {

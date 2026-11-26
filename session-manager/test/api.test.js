@@ -30,15 +30,17 @@ before(async () => {
       SAVES_HOST_DIR: path.join(tmp, "saves"),
       ADMIN_TOKEN: ADMIN,
     },
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
   });
-  for (let i = 0; i < 50; i++) {
+  let errors = "";
+  server.stderr.on("data", (chunk) => (errors += chunk));
+  for (let i = 0; i < 150; i++) {
     try {
       if ((await fetch(`${BASE}/health`)).ok) return;
     } catch {}
     await new Promise((r) => setTimeout(r, 100));
   }
-  throw new Error("server did not start");
+  throw new Error(`server did not start: ${errors}`);
 });
 
 after(() => {

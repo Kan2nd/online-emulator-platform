@@ -46,6 +46,22 @@ Browser ──HTTP/WS──> session-manager (Express + dockerode, port 4000)
 - **`docker-compose.yml`** builds both images and runs session-manager plus
   the monitoring stack, all with `restart: unless-stopped`.
 
+## How saves work
+
+Everything lands in `saves/<player>/` on the server, outside the containers,
+so it survives the container being removed.
+
+| | In-game save | Save-state slot |
+|---|---|---|
+| Made by | the game's own Save menu | the **Save** button on a slot (4 slots) |
+| File | `<game>.srm` | `<game>.state`, `.state1` … `.state3` |
+| Written | every 30s if it changed, and when the session stops | at once |
+| Comes back | automatically next time that player starts the game | when you press **Load** |
+| Delete | not from the UI | **Delete** on the slot |
+
+Loading an old slot did not overwrite the `.srm` file in testing. There are
+no passwords: anyone who types the same player name gets the same saves.
+
 ## Limits and next steps
 
 - **Save storage is a local bind mount**, not object storage. For S3 or GCS,

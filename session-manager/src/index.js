@@ -8,6 +8,7 @@ const { startSession, stopSession, isRunning, stopOrphans, getLogs, inspect } = 
 const {
   listRoms,
   listStates,
+  deleteState,
   listPending,
   savePending,
   approvePending,
@@ -213,6 +214,18 @@ app.get("/sessions/:id/states", (req, res) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: "unknown session" });
   res.json({ slots: listStates(session.userId, session.game) });
+});
+
+app.delete("/sessions/:id/states/:slot", (req, res) => {
+  const session = sessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: "unknown session" });
+  try {
+    const slot = /^\d$/.test(req.params.slot) ? Number(req.params.slot) : -1;
+    deleteState(session.userId, session.game, slot);
+    res.status(204).end();
+  } catch (err) {
+    res.status(err instanceof UploadError ? err.status : 500).json({ error: err.message });
+  }
 });
 
 app.get("/sessions/:id/logs", async (req, res) => {

@@ -19,13 +19,16 @@ const STATE_SLOTS = 4;
 
 // RetroArch names states <content basename>.state for slot 0 and
 // .state1, .state2, ... for the others.
-function listStates(userId, game) {
+function stateFile(userId, game, slot) {
   const base = game.replace(/\.[^.]+$/, "");
+  return path.join(SAVES_DIR, userId, `${base}.state${slot === 0 ? "" : slot}`);
+}
+
+function listStates(userId, game) {
   const slots = [];
   for (let slot = 0; slot < STATE_SLOTS; slot++) {
-    const file = path.join(SAVES_DIR, userId, `${base}.state${slot === 0 ? "" : slot}`);
     try {
-      slots.push({ slot, savedAt: fs.statSync(file).mtime.toISOString() });
+      slots.push({ slot, savedAt: fs.statSync(stateFile(userId, game, slot)).mtime.toISOString() });
     } catch {
       slots.push({ slot, savedAt: null });
     }
@@ -137,6 +140,19 @@ function rejectPending(name) {
   fs.rmSync(path.join(PENDING_DIR, `${name}.json`), { force: true });
 }
 
+// Removes one snapshot only; the in-game save (.srm) is a different file.
+function deleteState(userId, game, slot) {
+  if (!Number.isInteger(slot) || slot < 0 || slot >= STATE_SLOTS) {
+    throw new UploadError(400, "No such save slot.");
+  }
+  try {
+    fs.unlinkSync(stateFile(userId, game, slot));
+  } catch (err) {
+    if (err.code === "ENOENT") throw new UploadError(404, "That slot is already empty.");
+    throw err;
+  }
+}
+
 function deleteRom(name) {
   if (!listRoms().includes(name)) throw new UploadError(404, "No such game.");
   fs.rmSync(path.join(ROMS_DIR, name));
@@ -145,6 +161,7 @@ function deleteRom(name) {
 module.exports = {
   listRoms,
   listStates,
+  deleteState,
   listPending,
   savePending,
   approvePending,
