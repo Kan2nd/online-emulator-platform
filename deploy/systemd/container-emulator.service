@@ -1,0 +1,25 @@
+# Starts the Container Emulator stack (session-manager) at boot.
+# Install: copy to /etc/systemd/system/, adjust User and WorkingDirectory to
+# where the repo lives on the server, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now container-emulator
+# The emulator containers themselves are started per play session by
+# session-manager, so only session-manager is brought up here.
+
+[Unit]
+Description=Container Emulator stack (session-manager)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A user in the docker group; the repo checkout with its .env lives here.
+User=master
+WorkingDirectory=/home/master/container-emulator
+ExecStart=/usr/bin/docker compose up -d session-manager
+ExecStop=/usr/bin/docker compose stop
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

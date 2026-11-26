@@ -157,6 +157,46 @@ Alertmanager, and cAdvisor alongside `session-manager`.
   Loki Docker logging driver — one-time setup:
   `docker plugin install grafana/loki-docker-driver:latest --alias loki`.
 
+## Running on a Linux server
+
+This is how the demo server (Ubuntu 24.04) is set up.
+
+1. Install Docker and Compose, and let your user run Docker without sudo
+   (log in again afterwards):
+
+   ```bash
+   sudo apt-get install -y docker.io docker-compose-v2
+   sudo usermod -aG docker "$USER"
+   ```
+
+2. Clone the repo and create `.env` from `.env.example` with **absolute
+   host paths** for `ROMS_HOST_DIR` / `SAVES_HOST_DIR` and a generated
+   `ADMIN_TOKEN` (`openssl rand -hex 24`). Leave `LOKI_URL` unset on Linux.
+
+3. Build both images. Name both services: the emulator image sits behind a
+   Compose profile, so a bare `docker compose build` silently skips it.
+
+   ```bash
+   docker compose build session-manager emulator
+   ```
+
+4. Start it at boot with the bundled systemd unit (edit `User` and
+   `WorkingDirectory` in it first if your user or path differ):
+
+   ```bash
+   sudo cp deploy/systemd/container-emulator.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now container-emulator
+   ```
+
+   session-manager also has `restart: unless-stopped`, so it recovers from
+   a Docker restart or crash on its own. Check on it with
+   `systemctl status container-emulator` and `docker compose ps`.
+
+The web UI is then on port 4000. Emulator containers use host networking
+(for WebRTC), so the browser must be able to reach the server's address
+directly, e.g. over Tailscale.
+
 ## Uploading games and the admin key
 
 Anyone can upload a `.gba` or `.nes` ROM from the web UI ("Add a game").
