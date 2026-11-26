@@ -17,6 +17,8 @@ const {
   UploadError,
 } = require("./storage");
 const metrics = require("./metrics");
+const users = require("./users");
+const { currentUser, signIn, signOut, revoke, requireLogin, requireUser, throttle } = require("./auth");
 
 const app = express();
 app.use(express.json());
@@ -43,35 +45,84 @@ app.get("/metrics", async (_req, res) => {
   res.end(await metrics.register.metrics());
 });
 
-const PLAYER_NAME = /^[A-Za-z0-9_-]{1,32}$/;
+// Turns the errors the stores throw on purpose into their status codes.
+const handle = (fn) => async (req, res) => {
+  try {
+    await fn(req, res);
+  } catch (err) {
+    const expected = err instanceof UploadError || err instanceof users.AccountError;
+    res.status(expected ? err.status : 500).json({ error: err.message });
+  }
+};
 
-app.get("/roms", (_req, res) => {
-  // Pending uploads are listed by name for everyone so an uploader can see
-  // theirs is queued; only approved files are playable.
-  res.json({
-    roms: listRoms(),
-    pending: listPending().map(({ name, uploader, uploadedAt }) => ({ name, uploader, uploadedAt })),
-  });
+// ---------- accounts ----------
+const TOO_MANY = { error: "Too many wrong passwords. Wait a minute and try again." };
+
+app.post(
+  "/auth/login",
+  handle(async (req, res) => {
+    const name = String(req.body?.name || "").slice(0, 32);
+    const key = `${name.toLowerCase()} ${req.ip}`;
+    if (throttle.locked(key)) return res.status(429).json(TOO_MANY);
+    if (!(await users.verify(name, req.body?.password))) {
+      throttle.fail(key);
+      return res.status(401).json({ error: "Wrong name or password." });
+    }
+    throttle.clear(key);
+    signIn(res, name);
+    res.json({ name, mustChange: users.mustChange(name) });
+  })
+);
+
+app.get("/auth/me", requireLogin, (req, res) => {
+  res.json({ name: req.user, mustChange: users.mustChange(req.user) });
+});
+
+app.post("/auth/logout", (req, res) => {
+  signOut(req, res);
+  res.status(204).end();
 });
 
 app.post(
-  "/roms/upload",
-  express.raw({ type: "application/octet-stream", limit: "48mb" }),
-  (req, res) => {
-    const uploader = String(req.query.player || "");
-    if (!PLAYER_NAME.test(uploader)) {
-      return res.status(400).json({ error: "Enter a player name before uploading." });
+  "/auth/password",
+  requireLogin,
+  handle(async (req, res) => {
+    const key = `${req.user.toLowerCase()} ${req.ip}`;
+    if (throttle.locked(key)) return res.status(429).json(TOO_MANY);
+    try {
+      await users.changePassword(req.user, req.body?.current, req.body?.next);
+    } catch (err) {
+      if (err.status === 400) throttle.fail(key);
+      throw err;
     }
+    throttle.clear(key);
+    revoke(req.user, req); // other browsers signed in with the old password
+    res.status(204).end();
+  })
+);
+
+// ---------- library ----------
+const library = () => ({
+  roms: listRoms(),
+  pending: listPending().map(({ name, uploader, uploadedAt }) => ({ name, uploader, uploadedAt })),
+});
+
+// Pending uploads are listed by name for every player so an uploader can see
+// theirs is queued; only approved files are playable.
+app.get("/roms", requireUser, (_req, res) => res.json(library()));
+
+// requireUser comes first so a stranger cannot make the server buffer 48 MB.
+app.post(
+  "/roms/upload",
+  requireUser,
+  express.raw({ type: "application/octet-stream", limit: "48mb" }),
+  handle(async (req, res) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       return res.status(400).json({ error: "The upload was empty." });
     }
-    try {
-      const name = savePending(req.query.name, req.body, uploader);
-      res.status(201).json({ name, status: "pending" });
-    } catch (err) {
-      res.status(err instanceof UploadError ? err.status : 500).json({ error: err.message });
-    }
-  }
+    const name = savePending(req.query.name, req.body, req.user);
+    res.status(201).json({ name, status: "pending" });
+  })
 );
 
 // Single shared admin token from the server's environment (.env, never the
@@ -91,24 +142,51 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function adminAction(fn) {
-  return (req, res) => {
-    try {
-      fn(req, res);
-    } catch (err) {
-      res.status(err instanceof UploadError ? err.status : 500).json({ error: err.message });
-    }
-  };
-}
-
+app.get("/admin", (_req, res) => res.sendFile(path.join(__dirname, "..", "public", "admin.html")));
 app.get("/admin/check", requireAdmin, (_req, res) => res.status(204).end());
+app.get("/admin/library", requireAdmin, (_req, res) => res.json(library()));
 
-app.get("/admin/pending", requireAdmin, (_req, res) => res.json({ pending: listPending() }));
+app.get("/admin/users", requireAdmin, (_req, res) => {
+  const playing = new Set([...sessions.values()].map((s) => s.userId));
+  res.json({ users: users.list().map((u) => ({ ...u, playing: playing.has(u.name) })) });
+});
+
+app.post(
+  "/admin/users",
+  requireAdmin,
+  handle(async (req, res) => {
+    const name = req.body?.name;
+    const password = await users.create(name);
+    res.status(201).json({ name, password });
+  })
+);
+
+app.post(
+  "/admin/users/:name/reset",
+  requireAdmin,
+  handle(async (req, res) => {
+    const password = await users.resetPassword(req.params.name);
+    revoke(req.params.name);
+    await endSessionsOf(req.params.name);
+    res.json({ name: req.params.name, password });
+  })
+);
+
+app.delete(
+  "/admin/users/:name",
+  requireAdmin,
+  handle(async (req, res) => {
+    users.remove(req.params.name);
+    revoke(req.params.name);
+    await endSessionsOf(req.params.name);
+    res.status(204).end();
+  })
+);
 
 app.post(
   "/admin/pending/:name/approve",
   requireAdmin,
-  adminAction((req, res) => {
+  handle(async (req, res) => {
     approvePending(req.params.name);
     res.status(204).end();
   })
@@ -117,7 +195,7 @@ app.post(
 app.delete(
   "/admin/pending/:name",
   requireAdmin,
-  adminAction((req, res) => {
+  handle(async (req, res) => {
     rejectPending(req.params.name);
     res.status(204).end();
   })
@@ -126,7 +204,7 @@ app.delete(
 app.delete(
   "/admin/roms/:name",
   requireAdmin,
-  adminAction((req, res) => {
+  handle(async (req, res) => {
     const inUse = [...sessions.values()].some((s) => s.game === req.params.name);
     if (inUse) {
       return res.status(409).json({ error: "Someone is playing that game right now." });
@@ -136,16 +214,12 @@ app.delete(
   })
 );
 
-app.post("/sessions", async (req, res) => {
-  const { userId, game } = req.body || {};
-  if (!userId || !game) {
-    return res.status(400).json({ error: "userId and game are required" });
-  }
-  // userId becomes a directory name and game a file name inside the saves
-  // and roms mounts, so neither may carry path separators or ".." tricks.
-  if (!PLAYER_NAME.test(userId)) {
-    return res.status(400).json({ error: "player name: 1-32 letters, digits, - or _" });
-  }
+// ---------- play sessions (a player only ever sees their own) ----------
+app.post("/sessions", requireUser, async (req, res) => {
+  // The player is whoever is signed in, never a name from the request. Account
+  // names are restricted to safe characters, as they become a save folder.
+  const userId = req.user;
+  const { game } = req.body || {};
   if (!listRoms().includes(game)) {
     return res.status(400).json({ error: "unknown game" });
   }
@@ -167,6 +241,11 @@ app.post("/sessions", async (req, res) => {
     const signalToken = randomBytes(24).toString("hex");
     const { container, port } = await startSession({ userId, game, signalToken });
     stopTimer();
+    if (!users.exists(userId)) {
+      // The admin deleted the account while the container was booting.
+      await stopSession(container.id);
+      return res.status(401).json({ error: "Sign in first.", code: "signed_out" });
+    }
     const sessionId = randomUUID();
     sessions.set(sessionId, {
       containerId: container.id,
@@ -191,70 +270,83 @@ app.post("/sessions", async (req, res) => {
 // of every API response.
 const publicSession = ({ signalToken, ...rest }) => rest;
 
-app.get("/sessions", (_req, res) => {
-  const result = Array.from(sessions.entries()).map(([sessionId, data]) => ({
-    sessionId,
-    ...publicSession(data),
-  }));
+// Someone else's session answers exactly like one that doesn't exist.
+function ownSession(req, res, next) {
+  req.session = sessions.get(req.params.id);
+  if (!req.session || req.session.userId !== req.user) {
+    return res.status(404).json({ error: "unknown session" });
+  }
+  next();
+}
+const owned = [requireUser, ownSession];
+
+app.get("/sessions", requireUser, (req, res) => {
+  const result = Array.from(sessions.entries())
+    .filter(([, data]) => data.userId === req.user)
+    .map(([sessionId, data]) => ({ sessionId, ...publicSession(data) }));
   res.json({ sessions: result });
 });
 
-app.get("/sessions/:id", async (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: "unknown session" });
-  try {
-    const info = await inspect(session.containerId);
-    res.json({ sessionId: req.params.id, ...publicSession(session), state: info.State });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+app.get(
+  "/sessions/:id",
+  owned,
+  handle(async (req, res) => {
+    const info = await inspect(req.session.containerId);
+    res.json({ sessionId: req.params.id, ...publicSession(req.session), state: info.State });
+  })
+);
+
+app.get("/sessions/:id/states", owned, (req, res) => {
+  res.json({ slots: listStates(req.session.userId, req.session.game) });
 });
 
-app.get("/sessions/:id/states", (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: "unknown session" });
-  res.json({ slots: listStates(session.userId, session.game) });
-});
-
-app.delete("/sessions/:id/states/:slot", (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: "unknown session" });
-  try {
+app.delete(
+  "/sessions/:id/states/:slot",
+  owned,
+  handle(async (req, res) => {
     const slot = /^\d$/.test(req.params.slot) ? Number(req.params.slot) : -1;
-    deleteState(session.userId, session.game, slot);
+    deleteState(req.session.userId, req.session.game, slot);
     res.status(204).end();
-  } catch (err) {
-    res.status(err instanceof UploadError ? err.status : 500).json({ error: err.message });
-  }
-});
+  })
+);
 
-app.get("/sessions/:id/logs", async (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: "unknown session" });
-  try {
-    const logs = await getLogs(session.containerId);
-    res.type("text/plain").send(logs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+app.get(
+  "/sessions/:id/logs",
+  owned,
+  handle(async (req, res) => {
+    res.type("text/plain").send(await getLogs(req.session.containerId));
+  })
+);
 
-app.delete("/sessions/:id", async (req, res) => {
-  const session = sessions.get(req.params.id);
-  if (!session) return res.status(404).json({ error: "unknown session" });
+async function endSession(id) {
+  const session = sessions.get(id);
+  if (!session) return;
   try {
     await stopSession(session.containerId);
-    res.status(204).send();
   } catch (err) {
     metrics.saveFlushErrors.inc();
-    res.status(500).json({ error: err.message });
+    throw err;
   } finally {
     // Dropped either way: a failed stop is counted above, but keeping the
     // entry would block this player's next session and ROM deletes forever.
-    sessions.delete(req.params.id);
+    sessions.delete(id);
     metrics.activeSessions.set(sessions.size);
   }
-});
+}
+
+async function endSessionsOf(name) {
+  const ids = [...sessions].filter(([, s]) => s.userId === name).map(([id]) => id);
+  await Promise.all(ids.map((id) => endSession(id).catch(() => {})));
+}
+
+app.delete(
+  "/sessions/:id",
+  owned,
+  handle(async (req, res) => {
+    await endSession(req.params.id);
+    res.status(204).send();
+  })
+);
 
 // Containers also end on their own (the emulator exits when no browser has
 // been connected for a while, or the game crashes). Forget those sessions.
@@ -291,7 +383,11 @@ const server = app.listen(PORT, () => {
 server.on("upgrade", (req, socket, head) => {
   const match = /^\/stream\/([\w-]+)$/.exec(req.url);
   const session = match && sessions.get(match[1]);
-  if (!session) {
+  // The video and input stream needs the same proof as the API: the signed-in
+  // owner, from this site's own page.
+  const user = currentUser(req);
+  const sameOrigin = !req.headers.origin || req.headers.origin.replace(/^https?:\/\//, "") === req.headers.host;
+  if (!session || !user || session.userId !== user || users.mustChange(user) || !sameOrigin) {
     socket.destroy();
     return;
   }

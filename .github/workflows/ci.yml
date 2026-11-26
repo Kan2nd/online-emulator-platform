@@ -32,6 +32,9 @@ jobs:
           node --check src/dockerManager.js
           node --check src/storage.js
           node --check src/metrics.js
+          node --check src/users.js
+          node --check src/auth.js
+          node --check public/ui.js
       - name: API tests
         working-directory: session-manager
         run: npm test

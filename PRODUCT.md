@@ -20,7 +20,7 @@ Not a browser-side emulator: emulation runs on the server, one ephemeral contain
 
 ## Operating Context
 
-- Players type a player name (no accounts); saves and save states are stored per player name.
+- Players sign in to an account the admin created; the first sign-in forces a password change. Saves and save states are stored per account.
 - Games come from a shared library. Any player can upload a ROM, but uploads wait in a pending queue until the admin approves them; only approved games appear in the library to play.
 - The owner holds the single admin account: approves or rejects pending uploads, and is the only one who can delete games.
 - Played on a keyboard (arrow keys, Z/X, A/S, Q/W, Enter, Shift); the browser forwards keys to the emulator.
@@ -32,7 +32,7 @@ Not a browser-side emulator: emulation runs on the server, one ephemeral contain
 - Per session: live video (480x320, 60 fps target), pause, reset, fullscreen, stop, four save-state slots, live fps and latency readout.
 - One game session per browser tab; closing the tab ends the session.
 - No audio is streamed yet.
-- Admin authentication is a single shared admin token configured on the server; there are no per-user accounts.
+- Admin authentication is a single shared admin token configured on the server. Player accounts are created, reset and deleted on the admin page; there is no self-registration.
 - ROMs must be supplied by users; the project ships none.
 
 ## Evidence on Hand

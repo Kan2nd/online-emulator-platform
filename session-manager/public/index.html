@@ -7,209 +7,52 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --ground: #06080c;
-    --drawer: #0c121c;
-    --drawer-2: #121b2a;
-    --rule: #1e2a3d;
-    --rule-strong: #2c3c57;
-    --ink: #e7edf8;
-    --ink-2: #9dadc8;
-    --ink-3: #6f80a0;
-    --stamp: #2f5fe8;
-    --stamp-hover: #2550cf;
-    --stamp-text: #86a8ff;
-    --stamp-wash: rgba(47, 95, 232, .14);
-    --good: #86a8ff;
-    --fair: #f2b84b;
-    --poor: #ff7a7a;
-    --radius: 6px;
-    --label: "Archivo", system-ui, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  html { color-scheme: dark; scrollbar-color: var(--rule-strong) var(--ground); }
-  body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.5 "Archivo", system-ui, sans-serif; font-stretch: 100%; caret-color: var(--stamp-text); }
-  ::selection { background: var(--stamp); color: #fff; }
-  :focus-visible { outline: 2px solid var(--stamp-text); outline-offset: 2px; border-radius: 3px; }
-  button, input { font: inherit; color: inherit; }
-  .num { font-variant-numeric: tabular-nums; }
-
-  /* Drawer-label voice: condensed caps, used for headings and labels only. */
-  .label { font-family: var(--label); font-stretch: 68%; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 6px 14px; background: var(--drawer-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap; }
-  .btn:hover:not(:disabled) { border-color: var(--stamp-text); }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn.primary { background: var(--stamp); border-color: var(--stamp); color: #fff; font-weight: 600; }
-  .btn.primary:hover:not(:disabled) { background: var(--stamp-hover); border-color: var(--stamp-hover); }
-  .btn.small { min-height: 28px; padding: 3px 10px; font-size: 13px; }
-  .btn.danger { color: var(--poor); }
-  .btn.danger:hover:not(:disabled) { border-color: var(--poor); }
-  .btn.danger:disabled { color: var(--ink-3); }
-  /* Two-step confirm: the first click arms the button, the second acts. */
-  .btn.armed, .btn.armed:hover:not(:disabled) { background: var(--drawer); border-color: var(--poor); color: var(--poor); font-weight: 600; }
-  .lvl { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--ink-3); }
-  .lvl[data-level="good"] { background: var(--good); }
-  .lvl[data-level="fair"] { background: var(--fair); }
-  .lvl[data-level="poor"] { background: var(--poor); }
-  .token { color: var(--stamp-text); font-weight: 600; }
-  .field { background: var(--ground); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 6px 10px; min-height: 34px; width: 170px; }
-  .field:focus { outline: none; border-color: var(--stamp-text); }
-  .field::placeholder { color: var(--ink-3); }
-
-  /* Shell */
-  .topbar { display: flex; align-items: center; gap: 20px; padding: 8px 24px; border-bottom: 1px solid var(--rule); background: var(--drawer); flex-wrap: wrap; }
-  .wordmark { font-size: 22px; line-height: 1; margin: 0; }
-  .wordmark span { color: var(--stamp-text); }
-  .topbar .grow { flex: 1; }
-  .who { display: flex; align-items: center; gap: 10px; }
-  .who label { color: var(--ink-2); font-size: 13px; }
-  .hint-error { color: var(--poor); font-size: 13px; }
-
-  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: calc(100vh - 51px); }
-  .rail { border-right: 1px solid var(--rule); background: var(--drawer); padding: 20px 18px 28px; display: flex; flex-direction: column; gap: 28px; }
-  .work { padding: 14px 24px 40px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 1fr; }
-    .rail { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .work { padding: 12px 16px 32px; }
-  }
-
-  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
-  .section-head h2 { margin: 0; font-size: 17px; color: var(--ink); }
-  .section-head .count { color: var(--ink-3); font-size: 13px; }
-
-  /* Catalog */
-  .catalog { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
-  .entry { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--rule); }
-  .entry.active { background: var(--stamp-wash); }
-  .callno { font-family: var(--label); font-stretch: 68%; font-weight: 700; font-size: 14px; color: var(--stamp-text); letter-spacing: .03em; }
-  .entry-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .entry-meta { color: var(--ink-3); font-size: 12px; }
-  .entry-actions { display: flex; gap: 6px; }
-  .empty-note { color: var(--ink-2); font-size: 14px; padding: 12px 6px; border-bottom: 1px solid var(--rule); }
-
-  .queue { list-style: none; margin: 0; padding: 0; border-top: 1px dashed var(--rule-strong); }
-  .queue li { padding: 9px 6px; border-bottom: 1px dashed var(--rule-strong); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
-  .queue .entry-title { color: var(--ink-2); }
-
-  .upload { display: flex; flex-direction: column; gap: 8px; }
-  .upload p { margin: 0; color: var(--ink-3); font-size: 13px; }
-  .progress { height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; display: none; }
-  .progress > div { height: 100%; width: 0; background: var(--stamp); transition: width .2s; }
-
-  .admin-box { border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--ground); }
-  .admin-box .row { display: flex; gap: 8px; }
-  .admin-box .field { width: 100%; }
-  .admin-on { color: var(--stamp-text); font-size: 13px; }
-
-  /* Screen. The stage is the largest 3:2 screen that fits the window with its
-     toolbar: width is limited by the column or by the height left under the top
-     bar (128px = top bar, padding, gap and toolbar), whichever is smaller. */
-  .stage { width: min(100%, max(360px, calc((100vh - 128px) * 1.5))); width: min(100%, max(360px, calc((100dvh - 128px) * 1.5))); margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
-  .screen { position: relative; width: 100%; aspect-ratio: 3 / 2; background: #000; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
-  /* Out of flow so the video's own size can never stretch or crop the box. */
-  .screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
-  .screen:fullscreen { aspect-ratio: auto; border: 0; border-radius: 0; }
-  .exit-fs { display: none; position: absolute; top: 12px; right: 12px; z-index: 1; opacity: .45; }
-  .exit-fs:hover, .exit-fs:focus-visible { opacity: 1; }
-  .screen:fullscreen .exit-fs { display: inline-flex; }
-  .overlay { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(6, 8, 12, .82); }
-  .overlay p { margin: 0; max-width: 42ch; color: var(--ink-2); }
-  .overlay strong { display: block; color: var(--ink); font-size: 26px; margin-bottom: 6px; }
-  .overlay-action:empty { display: none; }
-  .overlay-action { margin-top: 18px; display: inline-flex; align-items: center; gap: 14px; padding: 10px 12px 10px 16px; border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--drawer); }
-  .overlay-action:has(> .btn:only-child) { border: 0; background: none; padding: 0; }
-  .overlay-action .callno { font-size: 18px; }
-  .overlay-action .entry-title { max-width: 26ch; color: var(--ink); text-align: left; }
-  @media (max-width: 640px) {
-    .overlay { padding: 10px; overflow: auto; font-size: 13px; }
-    .overlay strong { font-size: 19px; margin-bottom: 2px; }
-    .overlay-action { margin-top: 10px; gap: 8px; padding: 6px 8px; }
-    .overlay-action .callno { display: none; }
-  }
-  .ledger-line { margin: 0; padding: 14px 16px; border: 1px dashed var(--rule-strong); border-radius: var(--radius); color: var(--ink-2); font-size: 14px; }
-
-  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .now { font-size: 20px; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .health { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
-  .health i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
-  .health[data-level="good"] i { background: var(--good); }
-  .health[data-level="fair"] i { background: var(--fair); }
-  .health[data-level="poor"] i { background: var(--poor); }
-  .toolbar .grow { flex: 1; }
-  .controls { display: flex; gap: 8px; }
-  @media (max-width: 640px) {
-    .toolbar .grow { display: none; }
-    .now { flex: 1 1 auto; }
-    .controls { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .controls .btn { padding: 6px 4px; }
-  }
-
-  .lower { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 28px; }
-  @media (max-width: 1100px) { .lower { grid-template-columns: 1fr; } }
-
-  /* Save slots: the date-stamp is the world's one signature move. */
-  .slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .slot { position: relative; background: var(--drawer); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; min-height: 118px; display: flex; flex-direction: column; gap: 8px; }
-  .slot.empty { border-style: dashed; }
-  .slot-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .slot-head .label { font-size: 15px; }
-  .slot-head .when { color: var(--ink-3); font-size: 12px; }
-  .stamp { align-self: flex-start; transform: rotate(-3deg); border: 2px solid var(--stamp-text); outline: 1px solid var(--stamp-text); outline-offset: 2px; border-radius: 3px; padding: 2px 8px; color: var(--stamp-text); font-family: var(--label); font-stretch: 70%; font-weight: 800; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; opacity: .92; }
-  .stamp.fresh { animation: press .32s cubic-bezier(.16, 1, .3, 1); }
-  @keyframes press { from { transform: rotate(-3deg) scale(1.55); opacity: 0; filter: blur(3px); } to { transform: rotate(-3deg) scale(1); opacity: .92; filter: blur(0); } }
-  @media (prefers-reduced-motion: reduce) { .stamp.fresh { animation: none; } }
-  .slot-empty-text { color: var(--ink-3); font-size: 13px; }
-  .slot-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
-  .slot-actions .btn { flex: 1 1 auto; }
-  @media (max-width: 480px) { .slots { grid-template-columns: 1fr; } }
-  .slots-help { margin: 10px 0 0; max-width: 70ch; color: var(--ink-2); font-size: 13px; }
-
-  .facts { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .facts th { text-align: left; font-weight: 400; color: var(--ink-2); padding: 7px 0; border-bottom: 1px solid var(--rule); width: 42%; }
-  .facts td { padding: 7px 0; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; text-align: right; }
-
-  .keys { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--ink-2); font-size: 13px; }
-  kbd { display: inline-block; min-width: 26px; text-align: center; font: 600 12px/1 "Archivo", sans-serif; font-stretch: 75%; background: var(--drawer-2); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 3px 6px; color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
-
-  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 14px); background: var(--drawer-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 10px 16px; max-width: min(520px, calc(100vw - 32px)); opacity: 0; pointer-events: none; transition: opacity .2s, transform .25s cubic-bezier(.16, 1, .3, 1); box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
-  .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .toast.error { border-color: var(--poor); }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-</style>
+<link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <header class="topbar">
     <h1 class="wordmark label">Container <span>Emulator</span></h1>
     <div class="grow"></div>
-    <div class="who">
-      <label for="userId">Player</label>
-      <input id="userId" class="field" type="text" placeholder="your name" maxlength="32" autocomplete="off" spellcheck="false">
-      <button id="adminToggle" class="btn small" type="button" aria-expanded="false" aria-controls="adminBox">Admin</button>
+    <div id="account" class="who" hidden>
+      <span class="signed-in">Signed in as <span id="meName" class="token"></span></span>
+      <button id="passwordBtn" class="btn small" type="button">Change password</button>
+      <button id="signOutBtn" class="btn small" type="button">Sign out</button>
     </div>
-    <div id="userError" class="hint-error" role="alert"></div>
+    <a class="btn small" href="/admin">Admin</a>
   </header>
 
-  <div class="layout">
-    <aside class="rail" aria-label="Game library">
-      <div id="adminBox" class="admin-box" hidden>
-        <div id="adminLocked">
-          <label class="label" for="adminKey" style="font-size:14px">Admin key</label>
-          <div class="row" style="margin-top:6px">
-            <input id="adminKey" class="field" type="password" autocomplete="current-password">
-            <button id="adminUnlock" class="btn small primary" type="button">Unlock</button>
-          </div>
-          <div id="adminError" class="hint-error" role="alert"></div>
-        </div>
-        <div id="adminUnlocked" hidden>
-          <div class="admin-on">Admin mode: you can approve, reject and delete games.</div>
-          <button id="adminLock" class="btn small" type="button" style="margin-top:8px">Lock admin</button>
-        </div>
-      </div>
+  <main id="loginView" class="gate" hidden>
+    <form id="loginForm" class="form">
+      <h2 class="label">Sign in</h2>
+      <p>Your saves are kept under your account. The admin creates accounts and gives you a temporary password.</p>
+      <label for="loginName">Account name</label>
+      <input id="loginName" class="field" type="text" autocomplete="username" maxlength="32" spellcheck="false" autocapitalize="none" required>
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" class="field" type="password" autocomplete="current-password" maxlength="128" required>
+      <div id="loginError" class="hint-error" role="alert"></div>
+      <button class="btn primary" type="submit">Sign in</button>
+    </form>
+  </main>
 
+  <main id="passwordView" class="gate" hidden>
+    <form id="passwordForm" class="form">
+      <h2 class="label">Choose a new password</h2>
+      <p id="passwordIntro"></p>
+      <input id="pwUser" type="text" autocomplete="username" class="sr-only" tabindex="-1" aria-hidden="true" readonly>
+      <label id="pwCurrentLabel" for="pwCurrent">Current password</label>
+      <input id="pwCurrent" class="field" type="password" autocomplete="current-password" maxlength="128" required>
+      <label for="pwNew">New password (8 characters or more)</label>
+      <input id="pwNew" class="field" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+      <label for="pwRepeat">New password again</label>
+      <input id="pwRepeat" class="field" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+      <div id="passwordError" class="hint-error" role="alert"></div>
+      <button class="btn primary" type="submit">Save password</button>
+      <button id="passwordCancel" class="btn" type="button">Back to games</button>
+    </form>
+  </main>
+
+  <div id="appView" class="layout" hidden>
+    <aside class="rail" aria-label="Game library">
       <section aria-labelledby="catalogHead">
         <div class="section-head"><h2 id="catalogHead" class="label">Catalog</h2><span id="catalogCount" class="count num"></span></div>
         <ul id="catalog" class="catalog"><li class="empty-note">Loading the catalog…</li></ul>
@@ -254,7 +97,7 @@
         <section aria-labelledby="slotsHead">
           <div class="section-head"><h2 id="slotsHead" class="label">Save slots</h2><span id="slotsNote" class="count">Play a game to use slots</span></div>
           <div id="slots" class="slots"></div>
-          <p class="slots-help">Saving from the game's own menu is kept automatically under your player name. Slots are separate snapshots of the exact moment; deleting one leaves your in-game save alone.</p>
+          <p class="slots-help">Saving from the game's own menu is kept automatically under your account. Slots are separate snapshots of the exact moment; deleting one leaves your in-game save alone.</p>
         </section>
         <section aria-labelledby="factsHead">
           <div class="section-head"><h2 id="factsHead" class="label">Session</h2></div>
@@ -283,166 +126,131 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="/ui.js"></script>
   <script>
-    const $ = (id) => document.getElementById(id);
-    const userIdInput = $("userId");
     const gameVideo = $("gameVideo");
-    const NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
     const GAME_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Shift", "z", "x", "a", "s", "q", "w"]);
     const SLOT_COUNT = 4;
 
     let session = null; // { id, game, containerId, port, startedAt }
     let pc = null, ws = null, inputChannel = null, statsTimer = null, paused = false;
-    let adminKey = sessionStorage.getItem("ce-admin-key") || "";
+    let me = null; // signed-in account name
     let library = { roms: [], pending: [] };
     let lastSlots = null;
 
-    userIdInput.value = localStorage.getItem("container-emulator-userId") || "";
-    userIdInput.addEventListener("input", () => { $("userError").textContent = ""; renderIdle(); });
-    userIdInput.addEventListener("change", () => localStorage.setItem("container-emulator-userId", userIdInput.value.trim()));
-
-    let toastTimer = null;
-    function toast(message, isError = false) {
-      const el = $("toast");
-      el.textContent = message;
-      el.classList.toggle("error", isError);
-      el.classList.add("show");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
-    }
-
-    function playerName() {
-      const name = userIdInput.value.trim();
-      if (!NAME_PATTERN.test(name)) {
-        $("userError").textContent = "Enter a player name: 1–32 letters, digits, - or _.";
-        userIdInput.focus();
-        return null;
-      }
-      localStorage.setItem("container-emulator-userId", name);
-      return name;
-    }
-
-    // Destructive actions take two clicks on the same button: the first arms
-    // it ("Confirm reset?"), the second acts. It disarms itself after 4s.
-    function armThenRun(btn, armedLabel, action) {
-      if (btn.classList.contains("armed")) {
-        clearTimeout(btn._disarm);
-        btn.classList.remove("armed");
-        btn.textContent = btn.dataset.label;
-        action();
-        return;
-      }
-      btn.dataset.label = btn.textContent;
-      btn.classList.add("armed");
-      btn.textContent = armedLabel;
-      btn._disarm = setTimeout(() => {
-        btn.classList.remove("armed");
-        btn.textContent = btn.dataset.label;
-      }, 4000);
-    }
-
-    const stem = (rom) => rom.replace(/\.[^.]+$/, "");
-    const consoleOf = (rom) => rom.split(".").pop().toUpperCase();
     function stampTime(iso) {
       const d = new Date(iso);
       const day = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
       const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
       return `${day} · ${time}`;
     }
-    function ago(iso) {
-      const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-      if (s < 60) return "just now";
-      if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-      if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-      return new Date(iso).toLocaleDateString();
+
+    // ---------- sign-in ----------
+    function show(view) {
+      for (const id of ["loginView", "passwordView", "appView"]) $(id).hidden = id !== view;
+      $("account").hidden = view !== "appView";
     }
 
-    // ---------- admin ----------
-    function renderAdmin() {
-      const on = !!adminKey;
-      $("adminLocked").hidden = on;
-      $("adminUnlocked").hidden = !on;
-      $("adminToggle").textContent = on ? "Admin · on" : "Admin";
-      renderLibrary();
+    function showLogin(message = "") {
+      me = null;
+      // The server has already dropped this login, so only the page is cleared.
+      clearSession();
+      library = { roms: [], pending: [] };
+      show("loginView");
+      $("loginError").textContent = message;
+      $("loginPassword").value = "";
+      $("loginName").value = $("loginName").value || localStorage.getItem("container-emulator-userId") || "";
+      ($("loginName").value ? $("loginPassword") : $("loginName")).focus();
     }
-    $("adminToggle").addEventListener("click", () => {
-      const box = $("adminBox");
-      box.hidden = !box.hidden;
-      $("adminToggle").setAttribute("aria-expanded", String(!box.hidden));
-      if (!box.hidden && !adminKey) $("adminKey").focus();
+
+    let forcedChange = false;
+    function showPassword(forced) {
+      forcedChange = forced;
+      $("passwordForm").reset();
+      $("pwUser").value = me || "";
+      $("passwordError").textContent = "";
+      $("passwordIntro").textContent = forced
+        ? "This is your first sign-in with a temporary password. Pick your own before you play."
+        : "Other browsers signed in to your account will be signed out.";
+      $("pwCurrentLabel").textContent = forced ? "Temporary password" : "Current password";
+      $("passwordCancel").textContent = forced ? "Sign out" : "Back to games";
+      show("passwordView");
+      $("pwCurrent").focus();
+    }
+
+    function enterApp() {
+      $("meName").textContent = me;
+      localStorage.setItem("container-emulator-userId", me);
+      show("appView");
+      renderSlots(lastSlots);
+      loadLibrary();
+    }
+
+    // Every signed-in request goes through here, so an ended login or a forced
+    // password change always lands on the right screen.
+    async function api(url, options) {
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        if (me) showLogin("You've been signed out. Sign in again.");
+      } else if (res.status === 403) {
+        const data = await res.clone().json().catch(() => ({}));
+        if (data.code === "password_change") showPassword(true);
+      }
+      return res;
+    }
+    const postJson = (url, body) =>
+      fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const errorOf = async (res, fallback) => (res && (await res.json().catch(() => ({}))).error) || fallback;
+    const OFFLINE = "Couldn't reach the server. Check your connection and try again.";
+
+    $("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("loginError").textContent = "";
+      const res = await postJson("/auth/login", { name: $("loginName").value.trim(), password: $("loginPassword").value }).catch(() => null);
+      if (!res || !res.ok) { $("loginError").textContent = await errorOf(res, OFFLINE); return; }
+      const data = await res.json();
+      me = data.name;
+      $("loginPassword").value = "";
+      if (data.mustChange) showPassword(true);
+      else enterApp();
     });
-    async function unlock() {
-      const key = $("adminKey").value;
-      if (!key) { $("adminError").textContent = "Enter the admin key."; return; }
-      let res;
-      try {
-        res = await fetch("/admin/check", { headers: { "x-admin-token": key } });
-      } catch {
-        $("adminError").textContent = "Couldn't reach the server. Check your connection and try again.";
+
+    $("passwordForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if ($("pwNew").value !== $("pwRepeat").value) {
+        $("passwordError").textContent = "The two new passwords don't match.";
         return;
       }
-      if (res.status === 204) {
-        adminKey = key;
-        sessionStorage.setItem("ce-admin-key", key);
-        $("adminKey").value = "";
-        $("adminError").textContent = "";
-        renderAdmin();
-        toast("Admin mode on.");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        $("adminError").textContent = data.error || "That key didn't work.";
-      }
-    }
-    $("adminUnlock").addEventListener("click", unlock);
-    $("adminKey").addEventListener("keydown", (e) => { if (e.key === "Enter") unlock(); });
-    $("adminLock").addEventListener("click", () => {
-      adminKey = "";
-      sessionStorage.removeItem("ce-admin-key");
-      renderAdmin();
+      const res = await postJson("/auth/password", { current: $("pwCurrent").value, next: $("pwNew").value }).catch(() => null);
+      if (res && res.status === 401) { showLogin("You've been signed out. Sign in again."); return; }
+      if (!res || !res.ok) { $("passwordError").textContent = await errorOf(res, OFFLINE); return; }
+      $("passwordForm").reset();
+      toast("Password changed.");
+      enterApp();
     });
 
-    async function adminRequest(method, url) {
-      const res = await fetch(url, { method, headers: { "x-admin-token": adminKey } });
-      if (res.status === 401) {
-        adminKey = "";
-        sessionStorage.removeItem("ce-admin-key");
-        renderAdmin();
-        throw new Error("Admin key no longer valid. Unlock again.");
-      }
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "That didn't work.");
+    async function signOut() {
+      await stopSession();
+      await fetch("/auth/logout", { method: "POST" }).catch(() => {});
+      $("loginName").value = "";
+      localStorage.removeItem("container-emulator-userId");
+      showLogin();
     }
+    $("signOutBtn").addEventListener("click", signOut);
+    $("passwordBtn").addEventListener("click", () => showPassword(false));
+    $("passwordCancel").addEventListener("click", () => (forcedChange ? signOut() : enterApp()));
 
     // ---------- library ----------
     async function loadLibrary() {
+      if (!me) return;
       try {
-        const res = await fetch("/roms");
+        const res = await api("/roms");
+        if (!res.ok) return;
         library = await res.json();
       } catch {
         toast("Couldn't load the catalog. Is the server running?", true);
       }
       renderLibrary();
-    }
-
-    // Call numbers are assigned per console in title order: GBA·001, NES·002…
-    function callNumbers(roms) {
-      const counters = {};
-      const out = {};
-      for (const rom of [...roms].sort((a, b) => a.localeCompare(b))) {
-        const c = consoleOf(rom);
-        counters[c] = (counters[c] || 0) + 1;
-        out[rom] = `${c}·${String(counters[c]).padStart(3, "0")}`;
-      }
-      return out;
-    }
-
-    function button(text, cls, onClick, disabled = false) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn small " + cls;
-      b.textContent = text;
-      b.disabled = disabled;
-      b.addEventListener("click", onClick);
-      return b;
     }
 
     function renderLibrary() {
@@ -455,29 +263,9 @@
         list.innerHTML = '<li class="empty-note">The catalog is empty. Upload a ROM below; it appears here once approved.</li>';
       }
       for (const rom of [...roms].sort((a, b) => calls[a].localeCompare(calls[b]))) {
-        const li = document.createElement("li");
-        li.className = "entry" + (session && session.game === rom ? " active" : "");
-        const call = document.createElement("span");
-        call.className = "callno";
-        call.textContent = calls[rom];
-        const text = document.createElement("div");
-        text.style.minWidth = "0";
-        const title = document.createElement("div");
-        title.className = "entry-title";
-        title.textContent = stem(rom);
-        title.title = rom;
-        const meta = document.createElement("div");
-        meta.className = "entry-meta";
-        meta.textContent = consoleOf(rom) === "GBA" ? "Game Boy Advance" : "NES";
-        text.append(title, meta);
-        const actions = document.createElement("div");
-        actions.className = "entry-actions";
         const playing = session && session.game === rom;
-        actions.append(button(playing ? "Playing" : "Play", "primary", () => startSession(rom), !!session));
-        if (adminKey) {
-          actions.append(button("Delete", "danger", (e) => armThenRun(e.currentTarget, "Confirm delete?", () => deleteGame(rom)), playing));
-        }
-        li.append(call, text, actions);
+        const li = row(stem(rom), consoleName(rom), [button(playing ? "Playing" : "Play", "primary", () => startSession(rom), !!session)], calls[rom]);
+        if (playing) li.classList.add("active");
         list.appendChild(li);
       }
 
@@ -488,43 +276,19 @@
         queue.innerHTML = '<li><span class="entry-meta">No uploads waiting.</span></li>';
       }
       for (const item of pending) {
-        const li = document.createElement("li");
-        const text = document.createElement("div");
-        text.style.minWidth = "0";
-        const title = document.createElement("div");
-        title.className = "entry-title";
-        title.textContent = item.name;
-        const meta = document.createElement("div");
-        meta.className = "entry-meta";
-        meta.textContent = [item.uploader && `from ${item.uploader}`, item.uploadedAt && ago(item.uploadedAt)].filter(Boolean).join(" · ");
-        text.append(title, meta);
-        li.append(text);
-        if (adminKey) {
-          const actions = document.createElement("div");
-          actions.className = "entry-actions";
-          actions.append(
-            button("Approve", "primary", () => approve(item.name)),
-            button("Reject", "danger", (e) => armThenRun(e.currentTarget, "Confirm reject?", () => reject(item.name)))
-          );
-          li.append(actions);
-        }
-        queue.appendChild(li);
+        const meta = [item.uploader && `from ${item.uploader}`, item.uploadedAt && ago(item.uploadedAt)].filter(Boolean).join(" · ");
+        queue.appendChild(row(item.name, meta));
       }
       renderIdle();
     }
 
     // With nothing playing, the screen offers the next step itself instead
-    // of pointing at the rail: ask for a name, or offer the first game.
+    // of pointing at the rail.
     function renderIdle() {
       if (session) return;
       const action = $("overlayAction");
       action.innerHTML = "";
       const roms = library.roms || [];
-      if (!NAME_PATTERN.test(userIdInput.value.trim())) {
-        setOverlay("Who's playing?", "Enter a player name first. Your saves and save slots are kept under it.");
-        action.append(button("Enter player name", "primary", () => userIdInput.focus()));
-        return;
-      }
       if (!roms.length) {
         setOverlay("The catalog is empty", "Upload a .gba or .nes ROM. It can be played once the admin approves it.");
         return;
@@ -541,35 +305,14 @@
       action.append(call, title, button("Play", "primary", () => startSession(first)));
     }
 
-    async function approve(name) {
-      try { await adminRequest("POST", `/admin/pending/${encodeURIComponent(name)}/approve`); toast(`${name} added to the catalog.`); }
-      catch (err) { toast(err.message, true); }
-      loadLibrary();
-    }
-    async function reject(name) {
-      try { await adminRequest("DELETE", `/admin/pending/${encodeURIComponent(name)}`); toast(`${name} rejected.`); }
-      catch (err) { toast(err.message, true); }
-      loadLibrary();
-    }
-    async function deleteGame(rom) {
-      try { await adminRequest("DELETE", `/admin/roms/${encodeURIComponent(rom)}`); toast(`${rom} deleted.`); }
-      catch (err) { toast(err.message, true); }
-      loadLibrary();
-    }
-
     // ---------- upload ----------
-    $("uploadBtn").addEventListener("click", () => {
-      if (playerName()) $("romFile").click();
-    });
+    $("uploadBtn").addEventListener("click", () => $("romFile").click());
     $("romFile").addEventListener("change", () => {
       const file = $("romFile").files[0];
       $("romFile").value = "";
       if (!file) return;
       if (!/\.(gba|nes)$/i.test(file.name)) { toast("Only .gba and .nes files can be uploaded.", true); return; }
       if (file.size > 48 * 1024 * 1024) { toast("That file is over the 48 MB limit.", true); return; }
-      const player = playerName();
-      if (!player) return;
-
       const bar = $("progress");
       const fill = bar.firstElementChild;
       const btn = $("uploadBtn");
@@ -579,12 +322,13 @@
       btn.textContent = "Uploading…";
 
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `/roms/upload?name=${encodeURIComponent(file.name)}&player=${encodeURIComponent(player)}`);
+      xhr.open("POST", `/roms/upload?name=${encodeURIComponent(file.name)}`);
       xhr.setRequestHeader("content-type", "application/octet-stream");
       xhr.upload.onprogress = (e) => { if (e.lengthComputable) fill.style.width = `${(100 * e.loaded) / e.total}%`; };
       const done = () => { btn.disabled = false; btn.textContent = "Upload ROM"; bar.style.display = "none"; };
       xhr.onload = () => {
         done();
+        if (xhr.status === 401) { showLogin("You've been signed out. Sign in again."); return; }
         let data = {};
         try { data = JSON.parse(xhr.responseText); } catch {}
         if (xhr.status === 201) toast(`${data.name} uploaded. It joins the catalog once the admin approves it.`);
@@ -619,7 +363,7 @@
     }
 
     async function startSession(game) {
-      const player = playerName();
+      const player = me;
       if (!player) return;
       session = { id: null, game, starting: true };
       renderLibrary();
@@ -627,11 +371,13 @@
       setHealth("off", "Starting");
       setOverlay("Starting", "Booting a fresh container for this game. This takes a few seconds.");
 
-      const res = await fetch("/sessions", {
+      const res = await api("/sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userId: player, game }),
+        body: JSON.stringify({ game }),
       }).catch(() => null);
+      if (res && res.status === 401) return;
+      if (me !== player) return; // signed out while the container was booting
       const data = res ? await res.json().catch(() => ({})) : {};
       if (!res || !res.ok) {
         session = null;
@@ -654,19 +400,26 @@
       if (window.matchMedia("(max-width: 900px)").matches) $("screen").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    async function stopSession() {
-      if (!session || !session.id) return;
-      const id = session.id;
+    // Puts the page back to "nothing playing" without talking to the server.
+    function clearSession() {
       disconnectStream();
       session = null;
+      lastSlots = null;
+      if (document.fullscreenElement) document.exitFullscreen();
       renderLibrary();
       setControls(false);
       setFacts(null);
       renderSlots(null);
       $("nowPlaying").textContent = "Nothing checked out";
+    }
+
+    async function stopSession() {
+      if (!session || !session.id) return;
+      const id = session.id;
+      clearSession();
       const res = await fetch(`/sessions/${id}`, { method: "DELETE" }).catch(() => null);
       if (res && (res.ok || res.status === 404)) toast("Session stopped and its container removed. In-game saves were kept.");
-      else toast("Couldn't confirm the container stopped. It ends by itself after 5 idle minutes.", true);
+      else if (!res || res.status !== 401) toast("Couldn't confirm the container stopped. It ends by itself after 5 idle minutes.", true);
     }
 
     // Close the container if the tab goes away, so sessions don't pile up.
@@ -687,6 +440,7 @@
         if (!opened || ws !== socket || !session || session.id !== sessionId) return;
         setOverlay("Session ended", "The game's container stopped. In-game saves were kept. Press Stop, then play again.");
         setHealth("off", "Ended");
+        api("/auth/me").catch(() => {}); // signed out by an admin? go to sign-in
       };
       pc.ontrack = (e) => {
         // Render frames as soon as they decode: latency beats smoothness here.
@@ -797,7 +551,7 @@
     }
     const heldKeys = new Set();
     function onKey(event, type) {
-      if (!session || event.target.tagName === "INPUT" || !GAME_KEYS.has(event.key)) return;
+      if (!session || $("appView").hidden || event.target.tagName === "INPUT" || !GAME_KEYS.has(event.key)) return;
       event.preventDefault();
       if (type === "down" && event.repeat) return;
       if (type === "down") heldKeys.add(event.key);
@@ -850,7 +604,7 @@
         note.textContent = `${SLOT_COUNT} slots`;
         const line = document.createElement("p");
         line.className = "ledger-line";
-        line.textContent = "No game checked out. Save slots open once you play, and stay with your player name.";
+        line.textContent = "No game checked out. Save slots open once you play, and stay with your account.";
         wrap.append(line);
         wrap.style.display = "block";
         return;
@@ -904,7 +658,7 @@
 
     async function fetchSlots() {
       if (!session || !session.id) return null;
-      const res = await fetch(`/sessions/${session.id}/states`).catch(() => null);
+      const res = await api(`/sessions/${session.id}/states`).catch(() => null);
       return res && res.ok ? (await res.json()).slots : null;
     }
     async function refreshSlots() {
@@ -915,7 +669,7 @@
     }
     async function deleteState(slot) {
       if (!session || !session.id) return;
-      const res = await fetch(`/sessions/${session.id}/states/${slot}`, { method: "DELETE" }).catch(() => null);
+      const res = await api(`/sessions/${session.id}/states/${slot}`, { method: "DELETE" }).catch(() => null);
       if (res && res.ok) toast(`Slot ${slot + 1} deleted.`);
       else toast((res && (await res.json().catch(() => ({}))).error) || "Couldn't delete that slot. Try again.", true);
       refreshSlots();
@@ -944,9 +698,16 @@
 
     setInterval(() => { if (session && session.id) refreshSlots(); }, 30000);
     setInterval(loadLibrary, 20000);
-    renderSlots(null);
-    renderAdmin();
-    loadLibrary();
+
+    (async function start() {
+      renderSlots(null);
+      const res = await fetch("/auth/me").catch(() => null);
+      if (!res || !res.ok) { showLogin(res ? "" : OFFLINE); return; }
+      const data = await res.json();
+      me = data.name;
+      if (data.mustChange) showPassword(true);
+      else enterApp();
+    })();
   </script>
 </body>
 </html>

@@ -18,9 +18,13 @@ services:
       # and write uploads (roms/.pending) and admin approvals/deletions.
       - ./roms:/data/roms
       - ./saves:/data/saves
+      # Player accounts (password hashes). Mounted only here, never into the
+      # emulator containers.
+      - ./data:/data/app
     environment:
       - EMULATOR_IMAGE=container-emulator/emulator:latest
       - ROMS_DIR=/data/roms
+      - DATA_DIR=/data/app
       # Absolute HOST paths — required because binds created via the
       # mounted docker.sock are resolved by the host daemon. Set these in
       # a .env file (see .env.example); there is no safe cross-platform

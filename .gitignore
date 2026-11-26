@@ -8,3 +8,6 @@ saves/*
 roms/*
 !roms/.gitkeep
 __pycache__/
+
+# Player accounts
+data/

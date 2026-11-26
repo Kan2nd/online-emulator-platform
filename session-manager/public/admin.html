@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Container Emulator Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="wordmark label">Container <span>Emulator</span></h1>
+    <div class="grow"></div>
+    <button id="lockBtn" class="btn small" type="button" hidden>Lock admin</button>
+    <a class="btn small" href="/">Back to games</a>
+  </header>
+
+  <main id="locked" class="gate">
+    <form id="unlockForm" class="form">
+      <h2 class="label">Admin</h2>
+      <p>Enter the admin key to create player accounts and manage games.</p>
+      <label for="adminKey">Admin key</label>
+      <input id="adminKey" class="field" type="password" autocomplete="off" required>
+      <div id="adminError" class="hint-error" role="alert"></div>
+      <button class="btn primary" type="submit">Unlock</button>
+    </form>
+  </main>
+
+  <main id="unlocked" class="admin-layout" hidden>
+    <section aria-labelledby="accountsHead">
+      <div class="section-head"><h2 id="accountsHead" class="label">Accounts</h2><span id="accountCount" class="count num"></span></div>
+      <form id="createForm" class="inline-form">
+        <label for="newName" class="sr-only">New account name</label>
+        <input id="newName" class="field" type="text" placeholder="new account name" maxlength="32" pattern="[A-Za-z0-9_\-]{1,32}" title="1–32 letters, digits, - or _" autocomplete="off" spellcheck="false" required>
+        <button class="btn primary" type="submit">Create account</button>
+      </form>
+      <div id="createError" class="hint-error" role="alert"></div>
+      <div id="secret" class="secret-note" role="status" hidden>
+        <div>Temporary password for <span id="secretName" class="token"></span></div>
+        <code id="secretValue"></code>
+        <div class="entry-meta">Shown only now. Give it to the player; they must change it when they first sign in.</div>
+        <button id="secretDone" class="btn small" type="button">Done</button>
+      </div>
+      <ul id="accounts" class="rows"></ul>
+    </section>
+
+    <div class="stack">
+      <section aria-labelledby="queueHead">
+        <div class="section-head"><h2 id="queueHead" class="label">Awaiting approval</h2><span id="queueCount" class="count num"></span></div>
+        <ul id="queue" class="queue"></ul>
+      </section>
+      <section aria-labelledby="catalogHead">
+        <div class="section-head"><h2 id="catalogHead" class="label">Catalog</h2><span id="catalogCount" class="count num"></span></div>
+        <ul id="catalog" class="catalog"></ul>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/ui.js"></script>
+  <script>
+    let adminKey = sessionStorage.getItem("ce-admin-key") || "";
+    let refreshTimer = null;
+
+    function lock(message = "") {
+      adminKey = "";
+      sessionStorage.removeItem("ce-admin-key");
+      clearInterval(refreshTimer);
+      hideSecret();
+      $("locked").hidden = false;
+      $("unlocked").hidden = true;
+      $("lockBtn").hidden = true;
+      $("adminError").textContent = message;
+      $("adminKey").focus();
+    }
+
+    // Every admin call; throws with the server's own message on failure.
+    async function admin(method, url, body) {
+      const res = await fetch(url, {
+        method,
+        headers: { "x-admin-token": adminKey, ...(body ? { "content-type": "application/json" } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      }).catch(() => { throw new Error("Couldn't reach the server. Check your connection and try again."); });
+      const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
+      if (res.status === 401) lock(data.error);
+      if (!res.ok) throw new Error(data.error || "That didn't work.");
+      return data;
+    }
+
+    async function open() {
+      await admin("GET", "/admin/check");
+      sessionStorage.setItem("ce-admin-key", adminKey);
+      $("locked").hidden = true;
+      $("unlocked").hidden = false;
+      $("lockBtn").hidden = false;
+      await refresh();
+      clearInterval(refreshTimer);
+      refreshTimer = setInterval(refresh, 10000);
+    }
+
+    $("unlockForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      adminKey = $("adminKey").value;
+      try {
+        await open();
+        $("adminKey").value = "";
+        $("adminError").textContent = "";
+      } catch (err) {
+        $("adminError").textContent = err.message;
+      }
+    });
+    $("lockBtn").addEventListener("click", () => lock());
+
+    // ---------- accounts ----------
+    function showSecret(name, password) {
+      $("secretName").textContent = name;
+      $("secretValue").textContent = password;
+      $("secret").hidden = false;
+    }
+    function hideSecret() {
+      $("secret").hidden = true;
+      $("secretValue").textContent = "";
+    }
+    $("secretDone").addEventListener("click", hideSecret);
+
+    $("createForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("createError").textContent = "";
+      const name = $("newName").value.trim();
+      try {
+        const data = await admin("POST", "/admin/users", { name });
+        $("newName").value = "";
+        showSecret(data.name, data.password);
+        refresh();
+      } catch (err) {
+        $("createError").textContent = err.message;
+      }
+    });
+
+    async function act(request, done) {
+      try {
+        const data = await request();
+        done(data);
+      } catch (err) {
+        toast(err.message, true);
+      }
+      if (adminKey) refresh();
+    }
+
+    function renderAccounts(users) {
+      const list = $("accounts");
+      list.innerHTML = "";
+      $("accountCount").textContent = users.length ? String(users.length) : "";
+      if (!users.length) {
+        list.innerHTML = '<li><span class="entry-meta">No accounts yet. Create one above so someone can sign in.</span></li>';
+      }
+      for (const user of users) {
+        const url = `/admin/users/${encodeURIComponent(user.name)}`;
+        const status = [user.mustChange ? "Temporary password" : "Active", user.playing && "playing now"].filter(Boolean).join(" · ");
+        list.appendChild(row(user.name, status, [
+          button("Reset password", "", (e) => armThenRun(e.currentTarget, "Confirm reset?", () =>
+            act(() => admin("POST", `${url}/reset`), (data) => showSecret(data.name, data.password)))),
+          button("Delete", "danger", (e) => armThenRun(e.currentTarget, "Confirm delete?", () =>
+            act(() => admin("DELETE", url), () => { hideSecret(); toast(`Account ${user.name} deleted. Its save files were kept.`); }))),
+        ]));
+      }
+    }
+
+    // ---------- games ----------
+    function renderGames({ roms, pending }) {
+      const queue = $("queue");
+      queue.innerHTML = "";
+      $("queueCount").textContent = pending.length ? String(pending.length) : "";
+      if (!pending.length) queue.innerHTML = '<li><span class="entry-meta">No uploads waiting.</span></li>';
+      for (const item of pending) {
+        const url = `/admin/pending/${encodeURIComponent(item.name)}`;
+        const meta = [item.uploader && `from ${item.uploader}`, item.uploadedAt && ago(item.uploadedAt)].filter(Boolean).join(" · ");
+        queue.appendChild(row(item.name, meta, [
+          button("Approve", "primary", () => act(() => admin("POST", `${url}/approve`), () => toast(`${item.name} added to the catalog.`))),
+          button("Reject", "danger", (e) => armThenRun(e.currentTarget, "Confirm reject?", () =>
+            act(() => admin("DELETE", url), () => toast(`${item.name} rejected.`)))),
+        ]));
+      }
+
+      const catalog = $("catalog");
+      const calls = callNumbers(roms);
+      catalog.innerHTML = "";
+      $("catalogCount").textContent = roms.length ? `${roms.length} ${roms.length === 1 ? "game" : "games"}` : "";
+      if (!roms.length) catalog.innerHTML = '<li class="empty-note">The catalog is empty.</li>';
+      for (const rom of [...roms].sort((a, b) => calls[a].localeCompare(calls[b]))) {
+        catalog.appendChild(row(stem(rom), consoleName(rom), [
+          button("Delete", "danger", (e) => armThenRun(e.currentTarget, "Confirm delete?", () =>
+            act(() => admin("DELETE", `/admin/roms/${encodeURIComponent(rom)}`), () => toast(`${rom} deleted.`)))),
+        ], calls[rom]));
+      }
+    }
+
+    async function refresh() {
+      // Redrawing would silently disarm a "Confirm …?" mid-click.
+      if (document.querySelector(".armed")) return;
+      try {
+        const [accounts, games] = await Promise.all([admin("GET", "/admin/users"), admin("GET", "/admin/library")]);
+        if (document.querySelector(".armed")) return;
+        renderAccounts(accounts.users);
+        renderGames(games);
+      } catch (err) {
+        if (adminKey) toast(err.message, true);
+      }
+    }
+
+    if (adminKey) open().catch((err) => lock(err.message));
+    else $("adminKey").focus();
+  </script>
+</body>
+</html>

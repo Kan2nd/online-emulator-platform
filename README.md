@@ -59,8 +59,25 @@ so it survives the container being removed.
 | Comes back | automatically next time that player starts the game | when you press **Load** |
 | Delete | not from the UI | **Delete** on the slot |
 
-Loading an old slot did not overwrite the `.srm` file in testing. There are
-no passwords: anyone who types the same player name gets the same saves.
+Loading an old slot did not overwrite the `.srm` file in testing. `<player>`
+is the account name.
+
+## Accounts
+
+- Only the admin creates accounts, on `/admin` with the admin key. The page
+  shows a temporary password once.
+- The first sign-in must replace the temporary password (8 characters or
+  more). Until then the account can do nothing else.
+- **Reset password** gives a new temporary password. Reset and **Delete** both
+  sign the player out and stop their game. Deleting keeps the save files, and
+  an account created later with the same name gets them.
+- A player only sees and controls their own sessions, including the video
+  stream. Someone else's session answers as if it didn't exist.
+- Passwords are stored as salted scrypt hashes in `data/users.json`. Five
+  wrong tries lock that name from that address for a minute.
+- Sign-ins are kept in memory for up to 12 hours, so restarting
+  session-manager signs everyone out. The demo is plain HTTP and relies on
+  Tailscale to encrypt it; put HTTPS in front before exposing it any other way.
 
 ## Limits and next steps
 
@@ -95,7 +112,9 @@ Requires Docker with Linux containers and Docker Compose.
    docker compose up -d
    ```
 
-4. Open http://localhost:4000, enter a player name and press **Play**.
+4. Open http://localhost:4000/admin, unlock it with your `ADMIN_TOKEN` and
+   create an account. Then sign in at http://localhost:4000 with the
+   temporary password, choose your own, and press **Play**.
    Arrow keys move, Z/X are B/A, Enter is Start and Shift is Select.
 
 Run the API tests with `cd session-manager && npm ci && npm test`.
@@ -220,18 +239,18 @@ directly, e.g. over Tailscale.
 
 ## Uploading games and the admin key
 
-Anyone can upload a `.gba` or `.nes` ROM from the web UI ("Add a game").
-Uploads land in `roms/.pending/` and appear under "Awaiting approval"; they
-can't be played until the admin approves them. The server checks the real
-ROM header (not just the extension), caps uploads at 48 MB, and holds at
-most 20 pending files.
+Any signed-in player can upload a `.gba` or `.nes` ROM from the web UI ("Add
+a game"). Uploads land in `roms/.pending/` and appear under "Awaiting
+approval"; they can't be played until the admin approves them. The server
+checks the real ROM header (not just the extension), caps uploads at 48 MB,
+and holds at most 20 pending files.
 
-The admin approves or rejects uploads and is the only one who can delete
-games. Admin access is a single key set as `ADMIN_TOKEN` in the server's
-`.env` (never committed). Generate one with `openssl rand -hex 24`, then
-in the UI click **Admin**, paste the key, and **Unlock**. Read it back on
-the server with `grep ADMIN_TOKEN ~/container-emulator/.env`. Without
-`ADMIN_TOKEN` set, admin actions are refused.
+Everything administrative is on the `/admin` page: player accounts,
+approving or rejecting uploads, and deleting games. It is unlocked by a
+single key set as `ADMIN_TOKEN` in the server's `.env` (never committed).
+Generate one with `openssl rand -hex 24`. Read it back on the server with
+`grep ADMIN_TOKEN ~/container-emulator/.env`. Without `ADMIN_TOKEN` set,
+admin actions are refused.
 
 ## Legal note
 
