@@ -11,6 +11,7 @@ import ctypes
 import json
 import os
 import queue
+import signal
 import threading
 import time
 
@@ -26,6 +27,13 @@ import websockets  # noqa: E402
 Gst.init(None)
 
 DISPLAY = os.environ.get("DISPLAY", ":99")
+# Host networking exposes the signaling port on every host interface, so
+# only a client that knows this per-session secret path (session-manager's
+# proxy) may connect. Unset = no check, for running the image by hand.
+SIGNAL_TOKEN = os.environ.get("SIGNAL_TOKEN", "")
+# With no browser connected for this long (a closed laptop, a crashed tab
+# that never sent its DELETE), end the session instead of emulating forever.
+IDLE_SECONDS = int(os.environ.get("IDLE_TIMEOUT_SECONDS", "300"))
 
 # Whitelist only: browser-supplied key names never reach xdotool unmapped.
 KEYMAP = {
@@ -220,23 +228,46 @@ commands = RetroArchCommands(os.environ.get("RA_CMD_FIFO", "/tmp/ra_cmd"))
 
 
 current = None
+idle_since = time.monotonic()
 
 
 async def handler(ws, path=None):
-    global current
+    global current, idle_since
+    path = path if path is not None else getattr(ws, "path", "")
+    if SIGNAL_TOKEN and path != "/" + SIGNAL_TOKEN:
+        await ws.close(code=4001, reason="unauthorized")
+        return
     if current is not None:
         current.stop()
     loop = asyncio.get_running_loop()
     peer = Peer(ws, loop)
     current = peer
+    idle_since = None
     await loop.run_in_executor(None, peer.start)
     try:
         async for raw in ws:
-            peer.handle(json.loads(raw))
+            try:
+                msg = json.loads(raw)
+            except ValueError:
+                continue
+            if isinstance(msg, dict):
+                peer.handle(msg)
     finally:
         peer.stop()
         if current is peer:
             current = None
+            idle_since = time.monotonic()
+
+
+async def idle_watchdog():
+    while True:
+        await asyncio.sleep(10)
+        if idle_since is not None and time.monotonic() - idle_since > IDLE_SECONDS:
+            print(f"[signal] no viewer for {IDLE_SECONDS}s, ending the session", flush=True)
+            # PID 1 is RetroArch (entrypoint.sh execs it): SIGTERM makes it
+            # flush SRAM and exit, and the auto-removed container goes away.
+            os.kill(1, signal.SIGTERM)
+            return
 
 
 async def main():
@@ -250,6 +281,8 @@ async def main():
     )
     port = server.sockets[0].getsockname()[1]
     print(f"[signal] listening on port {port}", flush=True)
+    if IDLE_SECONDS > 0:
+        await idle_watchdog()
     await asyncio.Future()
 
 

@@ -7,3 +7,4 @@ saves/*
 
 roms/*
 !roms/.gitkeep
+__pycache__/

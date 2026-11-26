@@ -1,111 +1,97 @@
-# Container Emulator — orchestration skeleton
+# Container Emulator
 
-A working proof-of-concept for the architecture discussed: one prebuilt
-emulator image, spun up as a disposable container per play session, with
-save data externalized to persistent storage instead of living in the
-container.
+A retro-game streaming platform for a class demo. There is one prebuilt
+emulator image, a disposable container per play session, video streamed to
+the browser over WebRTC, and save data kept outside the container.
 
 ```
-Browser --> session-manager (Express + dockerode)
-                  |
-                  | docker.sock (spawns a sibling container per session)
-                  v
-            emulator container (RetroArch + libretro core, prebuilt image)
-                  |
-                  +-- reads  /data/roms/<game>        (bind mount, read-only)
-                  +-- writes /data/saves/<user>/<game>.srm (bind mount, read-write)
+Browser ──HTTP/WS──> session-manager (Express + dockerode, port 4000)
+   ▲                      │ docker.sock: starts one sibling container per session
+   │                      ▼
+   └──WebRTC video──  emulator container (host network)
+      + input             Xvfb → RetroArch + libretro core (mGBA / Nestopia)
+                          GStreamer ximagesrc → VP8 → webrtcbin
+                          +-- reads  /data/roms/<game>          (bind mount, read-only)
+                          +-- writes /data/saves/<player>/...   (bind mount, read-write)
 ```
 
-## What's implemented
+## How it works
 
-- **`emulator-image/`** — the prebuilt image. RetroArch + the Nestopia (NES)
-  and mGBA (GBA) libretro cores, installed once at build time. Nothing game-specific is
-  baked in. `entrypoint.sh` is the only per-session logic: it points
-  RetroArch's `--save`/`--savestate` flags directly at a path under
-  `/data/saves/<user>/`, so the save file is written straight to the mounted
-  volume as the emulator runs — no separate copy-out step needed, plus an
-  `autosave_interval` so a killed (not just stopped) container doesn't lose
-  much progress.
-- **`session-manager/`** — the orchestrator. `POST /sessions` spawns an
-  emulator container (via `dockerode`, talking to the host Docker daemon
-  over the mounted `docker.sock`) with the right ROM and save-directory
-  binds for that user/game. `DELETE /sessions/:id` stops it (SIGTERM first,
-  so RetroArch flushes SRAM before the grace period expires and the
-  container is removed). Session metadata lives in memory for now.
-- **`docker-compose.yml`** — builds both images and runs `session-manager`
-  locally with `docker.sock` mounted (docker-outside-of-docker).
+- **`emulator-image/`** is the prebuilt image: RetroArch with the mGBA (GBA)
+  and Nestopia (NES) cores, Xvfb, GStreamer and a small Python signaling
+  server. Nothing game-specific is baked in.
+  - `entrypoint.sh` is the only per-session logic. It picks the core from
+    the ROM's extension and starts a private X display. It then points
+    RetroArch's save and save-state directories at `/data/saves/<player>/`,
+    so saves land straight on the mounted volume. `autosave_interval` limits
+    what a killed container can lose.
+  - `webrtc_server.py` captures the display, encodes it to VP8 and streams
+    it over WebRTC. Keypresses come back over a data channel and are
+    replayed with XTest, and save, load, reset and pause go to RetroArch's
+    stdin command interface.
+  - The signaling port is random, and it only accepts the per-session secret
+    path that session-manager hands the container. The container ends itself
+    after 5 minutes with no viewer (`IDLE_TIMEOUT_SECONDS`).
+- **`session-manager/`** is the orchestrator and web UI.
+  - `POST /sessions` starts an emulator container through the host's Docker
+    daemon (the mounted `docker.sock`). It allows at most `MAX_SESSIONS` at
+    once (default 4) and one session per player per game, so two emulators
+    never write the same save file.
+  - `/stream/<id>` proxies the WebRTC signaling to that container, so the
+    browser only ever talks to port 4000 for HTTP and WebSockets.
+  - `DELETE /sessions/:id` sends SIGTERM so RetroArch flushes SRAM first.
+  - Sessions whose container ended on its own are dropped every 15s. After
+    a restart, leftover emulator containers are stopped.
+  - Session state is in memory, which is fine for one replica.
+- **`docker-compose.yml`** builds both images and runs session-manager plus
+  the monitoring stack, all with `restart: unless-stopped`.
 
-## What's stubbed / not implemented
+## Limits and next steps
 
-- **Video/audio streaming.** `retroarch.cfg` runs with `video_driver=null`
-  and `audio_driver=null` so the emulator runs headless in a container with
-  no GPU/X server — this proves the core boots, runs, and persists saves,
-  but no frames leave the container yet. Real deployments replace the null
-  driver with a capture pipeline (e.g. ffmpeg reading RetroArch's video
-  callback or an Xvfb framebuffer) feeding a WebRTC or low-latency HLS
-  output, with player input coming back over a WebRTC data channel or
-  RetroArch's network remote-input protocol.
-- **Save storage is a local bind mount**, not object storage. For S3/GCS,
-  either (a) mount it as a POSIX filesystem via `s3fs`/`goofys` so RetroArch
-  writes directly, keeping `entrypoint.sh` unchanged, or (b) go back to
-  local disk inside the container and add explicit `aws s3 cp` sync calls on
-  session start/stop in `entrypoint.sh`. `session-manager/src/storage.js` is
-  already isolated specifically so swapping this doesn't touch routing code.
-- **Session state is in-memory** in `session-manager` — fine for one
-  replica, not for a horizontally-scaled deployment (move to Redis/a DB).
-- **No container pooling.** Each session does a cold `docker run`; for
-  lower perceived latency, pre-warm a pool of idle containers per popular
-  game and hand one out instead of starting from scratch.
-- **Orchestration is Docker-API-only** — see "The one real gap" under
-  CI/CD below; the Kubernetes manifests describe how `session-manager`
-  itself deploys, not yet how it would spawn sessions on a real cluster.
+- **Save storage is a local bind mount**, not object storage. For S3 or GCS,
+  mount the bucket as a filesystem (`s3fs`/`goofys`) so nothing else
+  changes, or sync explicitly on session start and stop.
+  `session-manager/src/storage.js` is isolated so this doesn't touch the
+  routes.
+- **One host only.** Sessions live in memory and containers are started
+  through one Docker daemon. More hosts would need shared session state
+  (Redis or a database) and a Kubernetes backend (see CI/CD).
+- **No container pool.** Each session is a cold start of about 5–8 seconds.
+  Pre-warmed idle containers would hide that.
+- **Network path.** WebRTC needs the browser to reach the server's UDP
+  ports directly. Over Tailscale that works, but through a relay (DERP) it
+  adds latency; a direct Tailscale connection or a TURN server fixes it.
 
 ## Running it locally
 
-Requires Docker Desktop (with the Linux containers backend) and Docker
-Compose.
+Requires Docker with Linux containers and Docker Compose.
 
-1. Put a ROM you legally own in `roms/`, e.g. `roms/game.nes` (must work
-   with the FCEUmm/NES core unless you change `emulator-image/`).
+1. Put a ROM you legally own (`.gba` or `.nes`) in `roms/`.
 2. Copy `.env.example` to `.env` and set `ROMS_HOST_DIR`/`SAVES_HOST_DIR` to
-   the **absolute host path** of this project's `roms/`/`saves/` folders.
-   This is required — see the comment in `docker-compose.yml` for why
-   (docker-outside-of-docker binds are resolved by the host daemon, not by
-   paths inside the session-manager container).
+   the **absolute host paths** of `roms/` and `saves/`. Docker resolves
+   these binds on the host, not inside session-manager (see the comment in
+   `docker-compose.yml`).
+3. Build both images (the emulator service sits behind a profile, so name
+   it), then start the stack:
 
    ```bash
-   docker compose build
-   docker compose up session-manager
+   docker compose build session-manager emulator
+   docker compose up -d
    ```
 
-3. Start a session:
+4. Open http://localhost:4000, enter a player name and press **Play**.
+   Arrow keys move, Z/X are B/A, Enter is Start and Shift is Select.
 
-   ```bash
-   curl -X POST localhost:4000/sessions -H "content-type: application/json" \
-     -d '{"userId":"alice","game":"game.nes"}'
-   ```
-
-4. Check it's running and look at its logs:
-
-   ```bash
-   curl localhost:4000/sessions
-   curl localhost:4000/sessions/<sessionId>/logs
-   ```
-
-5. Stop it — this triggers the save flush:
-
-   ```bash
-   curl -X DELETE localhost:4000/sessions/<sessionId>
-   ```
-
-   Check `saves/alice/game.srm` now exists and has content. Starting a new
-   session with the same `userId`/`game` picks that save file back up.
+Run the API tests with `cd session-manager && npm ci && npm test`.
 
 ## CI/CD
 
-- **`.github/workflows/ci.yml`** — on every push/PR: install deps, syntax-check
-  `session-manager`, then (on `main` only) build and push both images to
-  GHCR, tagged with the git SHA and `latest`.
+- **`.github/workflows/ci.yml`** runs on every push and PR. It installs
+  dependencies from the lockfile, syntax-checks session-manager, and runs
+  the API tests (`session-manager/test/`). It also audits dependencies and
+  syntax-checks the emulator's Python and shell scripts. On `main` only, it
+  then builds and pushes both images to GHCR, tagged with the git SHA and
+  `latest`.
 - **Deploys are off by default**: both CD workflows skip unless the
   repository variable `K8S_DEPLOY_ENABLED` is `true` (Settings → Secrets and
   variables → Actions → Variables), since they need a Kubernetes cluster.
@@ -136,17 +122,20 @@ works end-to-end, `dockerManager.js` needs a Kubernetes-API backend (e.g.
 via `@kubernetes/client-node`, creating a Pod/Job per session) as an
 alternative to the current Docker-API one.
 
-## Observability stack (local)
+## Observability stack
 
-`docker compose up` now also brings up Prometheus, Grafana, Loki, Promtail,
+`docker compose up -d` also brings up Prometheus, Grafana, Loki, Promtail,
 Alertmanager, and cAdvisor alongside `session-manager`.
 
-- **Grafana**: http://localhost:3000 (admin/admin) — "Container emulator -
+- **Grafana**: http://localhost:3000 (user `admin`, password
+  `GRAFANA_ADMIN_PASSWORD` from `.env`, or `admin` if unset) — "Container emulator -
   sessions overview" dashboard is pre-provisioned: active sessions, p95
   session-start latency, save-flush error rate.
-- **Prometheus**: http://localhost:9090 — scrapes `session-manager:4000/metrics`
+- **Prometheus**: http://localhost:9091 (host port 9091, since some servers
+  already run a Prometheus on 9090) — scrapes `session-manager:4000/metrics`
   (exposed via `session-manager/src/metrics.js`, using `prom-client`) and
   `cadvisor:8080` for per-container resource stats.
+- **cAdvisor**: http://localhost:8081.
 - **Alertmanager**: http://localhost:9093 — three rules ship in
   `observability/prometheus/rules/alerts.yml`: `SessionManagerDown`,
   `HighSaveFlushErrorRate`, `SessionStartLatencyHigh`. Replace the
@@ -173,8 +162,9 @@ This is how the demo server (Ubuntu 24.04) is set up.
    ```
 
 2. Clone the repo and create `.env` from `.env.example` with **absolute
-   host paths** for `ROMS_HOST_DIR` / `SAVES_HOST_DIR` and a generated
-   `ADMIN_TOKEN` (`openssl rand -hex 24`). Leave `LOKI_URL` unset on Linux.
+   host paths** for `ROMS_HOST_DIR` / `SAVES_HOST_DIR`, plus generated
+   values for `ADMIN_TOKEN` and `GRAFANA_ADMIN_PASSWORD`
+   (`openssl rand -hex 24`). Leave `LOKI_URL` unset on Linux.
 
 3. Build both images. Name both services: the emulator image sits behind a
    Compose profile, so a bare `docker compose build` silently skips it.
@@ -192,9 +182,21 @@ This is how the demo server (Ubuntu 24.04) is set up.
    sudo systemctl enable --now container-emulator
    ```
 
-   session-manager also has `restart: unless-stopped`, so it recovers from
-   a Docker restart or crash on its own. Check on it with
+   This starts session-manager and the monitoring stack. Every service also
+   has `restart: unless-stopped`, so it recovers from a Docker restart or
+   crash on its own. Check on it with
    `systemctl status container-emulator` and `docker compose ps`.
+
+To update the server later, pull and rebuild:
+
+```bash
+cd ~/container-emulator
+git pull
+docker compose build session-manager emulator
+docker compose up -d
+```
+
+Roll back with `git checkout <commit>` and the same two commands.
 
 The web UI is then on port 4000. Emulator containers use host networking
 (for WebRTC), so the browser must be able to reach the server's address

@@ -16,13 +16,15 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: session-manager/package-lock.json
       - name: Install session-manager deps
         working-directory: session-manager
-        run: npm install
+        run: npm ci
       - name: Syntax check
         working-directory: session-manager
         run: |
@@ -30,16 +32,25 @@ jobs:
           node --check src/dockerManager.js
           node --check src/storage.js
           node --check src/metrics.js
-      # No automated test suite yet — add `npm test` here once one exists.
+      - name: API tests
+        working-directory: session-manager
+        run: npm test
+      - name: Dependency audit
+        working-directory: session-manager
+        run: npm audit --omit=dev --audit-level=high
+      - name: Check emulator scripts
+        run: |
+          python3 -m py_compile emulator-image/webrtc_server.py
+          sh -n emulator-image/entrypoint.sh
 
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -51,7 +62,7 @@ jobs:
         run: echo "IMAGE_PREFIX=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Build and push session-manager
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./session-manager
           push: true
@@ -60,7 +71,7 @@ jobs:
             ${{ env.IMAGE_PREFIX }}/session-manager:latest
 
       - name: Build and push emulator image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./emulator-image
           push: true

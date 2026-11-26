@@ -645,8 +645,9 @@
       setFacts(null);
       renderSlots(null);
       $("nowPlaying").textContent = "Nothing checked out";
-      await fetch(`/sessions/${id}`, { method: "DELETE" });
-      toast("Session stopped and its container removed. In-game saves were kept.");
+      const res = await fetch(`/sessions/${id}`, { method: "DELETE" }).catch(() => null);
+      if (res && (res.ok || res.status === 404)) toast("Session stopped and its container removed. In-game saves were kept.");
+      else toast("Couldn't confirm the container stopped. It ends by itself after 5 idle minutes.", true);
     }
 
     // Close the container if the tab goes away, so sessions don't pile up.
@@ -657,7 +658,17 @@
     // ---------- stream ----------
     function connectStream(sessionId) {
       pc = new RTCPeerConnection({ iceServers: [] });
-      ws = new WebSocket(`ws://${location.host}/stream/${sessionId}`);
+      const socket = ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/stream/${sessionId}`);
+      // The container ending (idle timeout, crash, server restart) closes the
+      // signaling socket; say so instead of leaving a frozen last frame.
+      let opened = false;
+      socket.addEventListener("open", () => { opened = true; });
+      socket.onclose = () => {
+        // Never opened: onerror already said the stream was unreachable.
+        if (!opened || ws !== socket || !session || session.id !== sessionId) return;
+        setOverlay("Session ended", "The game's container stopped. In-game saves were kept. Press Stop, then play again.");
+        setHealth("off", "Ended");
+      };
       pc.ontrack = (e) => {
         // Render frames as soon as they decode: latency beats smoothness here.
         if ("jitterBufferTarget" in e.receiver) e.receiver.jitterBufferTarget = 0;
@@ -765,14 +776,23 @@
       inputChannel.send(JSON.stringify(obj));
       return true;
     }
+    const heldKeys = new Set();
     function onKey(event, type) {
       if (!session || event.target.tagName === "INPUT" || !GAME_KEYS.has(event.key)) return;
       event.preventDefault();
       if (type === "down" && event.repeat) return;
+      if (type === "down") heldKeys.add(event.key);
+      else heldKeys.delete(event.key);
       sendToGame({ t: type, key: event.key });
     }
     window.addEventListener("keydown", (e) => onKey(e, "down"));
     window.addEventListener("keyup", (e) => onKey(e, "up"));
+    // A key held while the tab loses focus never gets its keyup here, and the
+    // game would keep walking. Release everything on blur.
+    window.addEventListener("blur", () => {
+      for (const key of heldKeys) sendToGame({ t: "up", key });
+      heldKeys.clear();
+    });
 
     function command(action, slot) {
       if (!sendToGame({ t: "cmd", action, slot })) {

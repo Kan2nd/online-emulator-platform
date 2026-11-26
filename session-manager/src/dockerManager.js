@@ -29,7 +29,9 @@ if (!ROMS_HOST_DIR || !SAVES_HOST_DIR) {
 // installed on the host once; unset LOKI_URL to skip this entirely.
 const LOKI_URL = process.env.LOKI_URL;
 
-async function startSession({ userId, game }) {
+const SESSION_LABEL = "container-emulator.game";
+
+async function startSession({ userId, game, signalToken }) {
   const hostConfig = {
     Binds: [`${ROMS_HOST_DIR}:/data/roms:ro`, `${SAVES_HOST_DIR}:/data/saves`],
     AutoRemove: true,
@@ -50,9 +52,12 @@ async function startSession({ userId, game }) {
 
   const container = await docker.createContainer({
     Image: EMULATOR_IMAGE,
-    Env: [`GAME=${game}`, `USER_ID=${userId}`],
+    // SIGNAL_TOKEN: with host networking the signaling port is open on every
+    // host interface, so the emulator only accepts connections on this
+    // secret path, which only session-manager's /stream proxy knows.
+    Env: [`GAME=${game}`, `USER_ID=${userId}`, `SIGNAL_TOKEN=${signalToken}`],
     HostConfig: hostConfig,
-    Labels: { "container-emulator.userId": userId, "container-emulator.game": game },
+    Labels: { "container-emulator.userId": userId, [SESSION_LABEL]: game },
   });
 
   await container.start();
@@ -83,7 +88,33 @@ async function stopSession(containerId, { timeoutSeconds = 10 } = {}) {
   // SIGTERM first (grace period = timeoutSeconds) so RetroArch flushes SRAM
   // before Docker escalates to SIGKILL.
   const container = docker.getContainer(containerId);
-  await container.stop({ t: timeoutSeconds });
+  try {
+    await container.stop({ t: timeoutSeconds });
+  } catch (err) {
+    // 304: already stopped, 404: already gone (AutoRemove after it exited).
+    // Either way the session is over, which is what the caller wants.
+    if (err.statusCode !== 304 && err.statusCode !== 404) throw err;
+  }
+}
+
+// True while the container exists and is running. A container that exited
+// on its own (game crashed, idle timeout) is auto-removed, so 404 = ended.
+async function isRunning(containerId) {
+  try {
+    const info = await docker.getContainer(containerId).inspect();
+    return Boolean(info.State && info.State.Running);
+  } catch (err) {
+    if (err.statusCode === 404) return false;
+    throw err;
+  }
+}
+
+// Sessions live only in session-manager's memory, so after it restarts any
+// emulator containers still running are unreachable. Stop them.
+async function stopOrphans() {
+  const running = await docker.listContainers({ filters: { label: [SESSION_LABEL] } });
+  await Promise.all(running.map((c) => stopSession(c.Id).catch(() => {})));
+  return running.length;
 }
 
 async function getLogs(containerId) {
@@ -97,4 +128,4 @@ async function inspect(containerId) {
   return container.inspect();
 }
 
-module.exports = { startSession, stopSession, getLogs, inspect };
+module.exports = { startSession, stopSession, isRunning, stopOrphans, getLogs, inspect };

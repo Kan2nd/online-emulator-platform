@@ -12,7 +12,8 @@ const activeSessions = new promClient.Gauge({
 const sessionStartDuration = new promClient.Histogram({
   name: "container_emulator_session_start_duration_seconds",
   help: "Time to start an emulator container for a new session",
-  buckets: [0.5, 1, 2, 5, 10, 20],
+  // A cold start (Xvfb, RetroArch, GStreamer, first offer) takes ~5-8s.
+  buckets: [1, 2.5, 5, 7.5, 10, 15, 20, 30, 45],
 });
 
 const saveFlushErrors = new promClient.Counter({
